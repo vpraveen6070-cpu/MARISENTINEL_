@@ -400,17 +400,21 @@
                       <th>Speed / Course</th>
                       <th>Threat Risk</th>
                       <th>AIS Status</th>
+                      <th style="text-align:right;">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     ${s.vessels.map(v => `
                       <tr>
-                        <td><strong>${v.name}</strong></td>
+                        <td><strong style="cursor:pointer; color:var(--primary);" onclick="window.openThreatDossier('${v.id}')">${v.name}</strong></td>
                         <td><span class="mono">${v.mmsi}</span></td>
                         <td>${v.flag} · ${v.type}</td>
                         <td>${v.speed} kts · ${v.course}°</td>
                         <td><span class="badge ${v.risk >= 80 ? 'badge-critical' : v.risk >= 60 ? 'badge-danger' : v.risk >= 40 ? 'badge-warn' : 'badge-ok'}">${v.risk}/100</span></td>
                         <td><span class="badge ${v.ais === 'active' ? 'badge-ok' : v.ais === 'lost' ? 'badge-critical' : 'badge-warn'}">${v.ais}</span></td>
+                        <td style="text-align:right;">
+                          <button class="btn btn-secondary btn-sm" onclick="window.openThreatDossier('${v.id}')">Inspect Profile</button>
+                        </td>
                       </tr>
                     `).join("")}
                   </tbody>

@@ -243,19 +243,22 @@
                       </label>
                       <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px;">
                         <button class="btn btn-secondary btn-sm ${inc.missionStatus === 'Accepted' ? 'btn-outlined' : ''}" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Accepted', 'Officer acknowledged mission orders.'); renderTab('missions');">
-                          1. Accepted
+                          1. Accept Mission
                         </button>
                         <button class="btn btn-secondary btn-sm ${inc.missionStatus === 'En Route' ? 'btn-outlined' : ''}" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'En Route', 'Fast Interceptor Craft IC-114 underway to target.'); window.msStore.simulateOfficerMovement('${me.id}', '${inc.id}'); renderTab('missions');">
                           2. En Route
                         </button>
-                        <button class="btn btn-secondary btn-sm ${inc.missionStatus === 'On Scene' ? 'btn-outlined' : ''}" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'On Scene', 'Visual contact established with vessel. Closing to 50m.'); renderTab('missions');">
-                          3. On Scene
+                        <button class="btn btn-secondary btn-sm ${inc.missionStatus === 'Target Located' ? 'btn-outlined' : ''}" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Target Located', 'Visual contact established with vessel. Closing to 50m for observation.'); renderTab('missions');">
+                          3. Target Located
                         </button>
-                        <button class="btn btn-secondary btn-sm ${inc.missionStatus === 'Investigating' ? 'btn-outlined' : ''}" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Investigating', 'Boarding party conducting cargo hold and manifest inspection.'); renderTab('missions');">
-                          4. Investigating
+                        <button class="btn btn-secondary btn-sm ${inc.missionStatus === 'Request Interception' ? 'btn-outlined' : ''}" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Request Interception', 'Suspicious activity observed. Requesting Command authorization for tactical boarding & search.'); renderTab('missions');">
+                          4. Request Interception
+                        </button>
+                        <button class="btn btn-secondary btn-sm ${inc.missionStatus === 'Action Executed' ? 'btn-outlined' : ''}" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Action Executed', 'Authorized action completed: Vessel boarded, master interviewed, and cargo manifest verified.'); renderTab('missions');">
+                          5. Action Executed
                         </button>
                         <button class="btn btn-primary btn-sm" onclick="renderTab('reports');">
-                          5. File Final Report &rarr;
+                          6. Submit Final Report &rarr;
                         </button>
                       </div>
                     </div>

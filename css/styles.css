@@ -452,7 +452,8 @@ button {
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  z-index: 30;
+  position: relative;
+  z-index: 2000;
   flex-shrink: 0;
 }
 
@@ -897,7 +898,7 @@ button {
 }
 
 /* ==========================================================================
-   Leaflet Map Custom Styling
+   Leaflet Map Custom Styling & Tactical Overlay
    ========================================================================== */
 .map-canvas {
   width: 100%;
@@ -905,10 +906,12 @@ button {
   min-height: 380px;
   border-radius: calc(var(--radius-lg) - 1px);
   background-color: #e5f3f6;
+  position: relative;
 }
 
 .leaflet-container {
   background-color: #e5f3f6 !important;
+  font-family: 'Inter', sans-serif !important;
 }
 
 .ms-vessel-marker {
@@ -917,9 +920,14 @@ button {
   transition: transform 0.3s ease;
 }
 
+.ms-vessel-icon {
+  background: transparent;
+  border: none;
+}
+
 .ms-pin-marker {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -927,6 +935,192 @@ button {
   font-weight: 800;
   color: #ffffff;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
+}
+
+/* Tactical Floating Map Toolbar */
+.ms-map-tactical-toolbar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.ms-map-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ms-map-search-box {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 6px 12px;
+  box-shadow: var(--shadow-md);
+  font-size: 12px;
+  min-width: 220px;
+}
+
+.ms-map-search-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 12px;
+  width: 100%;
+  color: var(--text-main);
+}
+
+.ms-map-filter-group {
+  pointer-events: auto;
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 3px;
+  box-shadow: var(--shadow-md);
+}
+
+.ms-map-filter-btn {
+  border: none;
+  background: transparent;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ms-map-filter-btn:hover {
+  color: var(--text-main);
+  background: rgba(15, 23, 42, 0.05);
+}
+
+.ms-map-filter-btn.active {
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: var(--shadow-sm);
+}
+
+.ms-map-sector-group {
+  pointer-events: auto;
+}
+
+.ms-map-sector-select {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 6px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-main);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  outline: none;
+}
+
+.ms-map-layer-dropdown {
+  pointer-events: auto;
+  position: relative;
+  margin-left: auto;
+}
+
+.ms-map-layer-btn {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 6px 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-main);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+}
+
+.ms-map-layer-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xl);
+  padding: 12px;
+  min-width: 220px;
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 11.5px;
+  z-index: 10001;
+}
+
+.ms-map-layer-menu.open {
+  display: flex;
+}
+
+.ms-map-layer-menu label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--text-main);
+  user-select: none;
+}
+
+/* Pulsing Radar Ring on Critical Contacts */
+@keyframes critical-ping {
+  0% { transform: translate(-50%, -50%) scale(0.7); opacity: 0.9; }
+  100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
+}
+
+.ms-critical-pulse-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid #ef4444;
+  animation: critical-ping 1.8s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+  pointer-events: none;
+}
+
+@keyframes incident-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 10px #ef4444; }
+  50% { transform: scale(1.12); box-shadow: 0 0 18px #ef4444; }
+}
+
+.ms-incident-pulse {
+  animation: incident-pulse 2s ease-in-out infinite;
+}
+
+/* Custom Leaflet Popups */
+.leaflet-popup-content-wrapper {
+  background: var(--bg-card) !important;
+  color: var(--text-main) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-xl) !important;
+  border: 1px solid var(--border-color) !important;
+  padding: 4px !important;
+}
+
+.leaflet-popup-tip {
+  background: var(--bg-card) !important;
 }
 
 /* Timeline Components */
@@ -960,6 +1154,211 @@ button {
 .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 
+/* Tactical Notification Center & Bell */
+.notification-bell-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.notification-bell-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-main);
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.notification-bell-btn:hover {
+  background: var(--bg-card-subtle);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.notification-badge {
+  display: none;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #ffffff;
+  background: var(--tertiary);
+  border-radius: 999px;
+  padding: 1px 6px;
+  min-width: 18px;
+  height: 18px;
+  line-height: 16px;
+  text-align: center;
+}
+
+.notification-badge.has-unread {
+  display: inline-block;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+  animation: notif-pulse 2s infinite ease-in-out;
+}
+
+@keyframes notif-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+.notification-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 10px);
+  right: -60px;
+  width: 390px;
+  max-width: calc(100vw - 24px);
+  background: #ffffff;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.22), 0 4px 12px rgba(0, 0, 0, 0.08);
+  z-index: 9999;
+  overflow: hidden;
+  animation: dropdown-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dropdown-fade-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.notification-dropdown.open {
+  display: block;
+}
+
+.notification-dropdown-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+}
+
+.notification-filter-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.notif-tab-btn {
+  border: none;
+  background: transparent;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.notif-tab-btn:hover {
+  color: var(--text-main);
+  background: rgba(15, 23, 42, 0.05);
+}
+
+.notif-tab-btn.active {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.notification-list {
+  max-height: 380px;
+  overflow-y: auto;
+  padding: 0;
+  background: #ffffff;
+}
+
+.notification-item {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  transition: background 0.15s ease;
+  cursor: pointer;
+  position: relative;
+  background: #ffffff;
+}
+
+.notification-item:hover {
+  background: #f8fafc;
+}
+
+.notification-item.unread {
+  background: #f0f9ff;
+}
+
+.notification-item.unread::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 16px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--secondary);
+  box-shadow: 0 0 6px var(--secondary);
+}
+
+.notification-item-icon {
+  font-size: 16px;
+  padding: 6px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.notification-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-item-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 3px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  word-break: break-word;
+}
+
+.notification-item-desc {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-bottom: 6px;
+  word-break: break-word;
+}
+
+.notification-item-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.notification-dropdown-footer {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border-color);
+  background: #f8fafc;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 @media (max-width: 1024px) {
   .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid-3 { grid-template-columns: 1fr; }
@@ -968,4 +1367,5 @@ button {
 @media (max-width: 640px) {
   .grid-4, .grid-2 { grid-template-columns: 1fr; }
   .app-sidebar { position: fixed; height: 100%; }
+  .notification-dropdown { width: calc(100vw - 24px); right: -12px; }
 }

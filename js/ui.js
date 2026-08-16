@@ -114,6 +114,126 @@ window.MS_UI = (function () {
     setTimeout(dismiss, TOAST_DURATION);
   }
 
+  /* ---------------- Tactical Audio Synthesizer ---------------- */
+  let audioCtx = null;
+  function playNotificationChime(severity = "info") {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      if (!audioCtx) audioCtx = new AudioContext();
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "sine";
+      const freq = severity === "critical" ? 880 : severity === "high" ? 660 : 523.25;
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.4, audioCtx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.28);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.3);
+    } catch (e) {
+      // Audio autostart policy or unsupported, silent fallback
+    }
+  }
+
+  /* ---------------- Notification Dropdown Renderer ---------------- */
+  let currentNotifFilter = "all";
+
+  function renderNotificationDropdownContent(filter = "all") {
+    currentNotifFilter = filter;
+    const s = window.msStore.getState();
+    const allNotifs = s.notifications || [];
+    const unreadCount = allNotifs.filter((n) => !n.read).length;
+
+    let filtered = allNotifs;
+    if (filter === "threat") {
+      filtered = allNotifs.filter((n) => n.type === "threat");
+    } else if (filter === "mission") {
+      filtered = allNotifs.filter((n) => n.type === "mission");
+    } else if (filter === "system") {
+      filtered = allNotifs.filter((n) => n.type === "system" || n.type === "operational");
+    }
+
+    return `
+      <div class="notification-dropdown-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <strong style="font-size:13px; color:var(--text-main);">Tactical Notifications</strong>
+          ${unreadCount > 0 ? `<span class="badge badge-critical" style="font-size:10px;">${unreadCount} Unread</span>` : `<span class="badge badge-ok" style="font-size:10px;">All Read</span>`}
+        </div>
+        ${
+          unreadCount > 0
+            ? `<button class="btn btn-secondary btn-sm" style="padding:2px 6px; font-size:10.5px;" onclick="window.msStore.markAllNotificationsRead();">Mark all read</button>`
+            : ""
+        }
+      </div>
+
+      <div class="notification-filter-tabs">
+        <button class="notif-tab-btn ${filter === 'all' ? 'active' : ''}" data-notif-filter="all">All (${allNotifs.length})</button>
+        <button class="notif-tab-btn ${filter === 'threat' ? 'active' : ''}" data-notif-filter="threat">🚨 Threats</button>
+        <button class="notif-tab-btn ${filter === 'mission' ? 'active' : ''}" data-notif-filter="mission">🎯 Missions</button>
+        <button class="notif-tab-btn ${filter === 'system' ? 'active' : ''}" data-notif-filter="system">📡 System</button>
+      </div>
+
+      <div class="notification-list">
+        ${
+          filtered.length === 0
+            ? `
+            <div style="padding:32px 16px; text-align:center; color:var(--text-muted); font-size:12px;">
+              <span>📭</span>
+              <p style="margin-top:6px;">No notifications in this category.</p>
+            </div>
+          `
+            : filtered
+                .map((n) => {
+                  const icon =
+                    n.type === "threat"
+                      ? "🚨"
+                      : n.type === "mission"
+                      ? "🎯"
+                      : n.type === "system"
+                      ? "📡"
+                      : "⚡";
+                  return `
+            <div class="notification-item ${n.read ? '' : 'unread'}" data-notif-id="${n.id}" onclick="window.msStore.markNotificationRead('${n.id}');">
+              <div class="notification-item-icon">${icon}</div>
+              <div class="notification-item-content">
+                <div class="notification-item-title">
+                  <span>${n.title}</span>
+                  <span style="font-size:10px; font-weight:400; color:var(--text-muted);">${timeAgo(n.ts)}</span>
+                </div>
+                <div class="notification-item-desc">${n.message}</div>
+                <div class="notification-item-actions">
+                  ${
+                    n.vesselId
+                      ? `<button class="btn btn-primary btn-sm" style="padding:2px 6px; font-size:10px;" onclick="event.stopPropagation(); window.msStore.markNotificationRead('${n.id}'); window.openThreatDossier('${n.vesselId}');">Inspect Dossier</button>`
+                      : ""
+                  }
+                  ${
+                    n.incidentId
+                      ? `<button class="btn btn-secondary btn-sm" style="padding:2px 6px; font-size:10px;" onclick="event.stopPropagation(); window.msStore.markNotificationRead('${n.id}'); if(window.renderTab){ window.renderTab('incidents'); }">View Incident</button>`
+                      : ""
+                  }
+                </div>
+              </div>
+            </div>
+          `;
+                })
+                .join("")
+        }
+      </div>
+
+      <div class="notification-dropdown-footer">
+        <span style="font-size:10px; color:var(--text-muted);">Real-time C2 Telemetry Channel</span>
+        <button class="btn btn-secondary btn-sm" style="padding:2px 6px; font-size:10px;" onclick="window.msStore.clearNotifications();">Clear All</button>
+      </div>
+    `;
+  }
+
   /* ---------------- AppShell Component Builder ---------------- */
   function renderAppShell(role, activeTab, onTabChange) {
     const s = window.msStore.getState();
@@ -121,6 +241,7 @@ window.MS_UI = (function () {
 
     const navItems = NAV_CONFIG[role] || [];
     const isCollapsed = localStorage.getItem("ms_sidebar_collapsed") === "true";
+    const unreadCount = (s.notifications || []).filter((n) => !n.read).length;
 
     const sidebarHtml = `
       <aside id="app-sidebar" class="app-sidebar ${isCollapsed ? "collapsed" : ""}">
@@ -177,6 +298,18 @@ window.MS_UI = (function () {
               ${s.simRunning ? "⏸" : "▶"}
             </button>
             <span class="mono" id="live-tick-count" style="margin-left:4px;color:var(--text-muted);">#${s.tick || 260}</span>
+          </div>
+
+          <!-- Tactical Notification Bell & Hub -->
+          <div class="notification-bell-wrapper">
+            <button id="notif-bell-btn" class="notification-bell-btn" title="Tactical Notifications (${unreadCount} unread)" aria-label="Notifications">
+              <span style="font-size:16px;">🔔</span>
+              <span id="notif-badge-count" class="notification-badge ${unreadCount > 0 ? 'has-unread' : ''}">${unreadCount}</span>
+            </button>
+
+            <div id="notif-dropdown-panel" class="notification-dropdown">
+              ${renderNotificationDropdownContent("all")}
+            </div>
           </div>
 
           <div class="user-profile-badge" style="display:flex;align-items:center;gap:8px;padding:4px 10px;border-radius:var(--radius-md);border:1px solid var(--border-color);background:var(--bg-card);cursor:pointer;" title="View profile">
@@ -239,6 +372,42 @@ window.MS_UI = (function () {
       });
     }
 
+    // Notification Bell & Dropdown Listeners
+    const notifBellBtn = document.getElementById("notif-bell-btn");
+    const notifDropdown = document.getElementById("notif-dropdown-panel");
+
+    if (notifBellBtn && notifDropdown) {
+      notifBellBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const isOpen = notifDropdown.classList.contains("open");
+        if (!isOpen) {
+          notifDropdown.innerHTML = renderNotificationDropdownContent(currentNotifFilter);
+          attachNotifFilterListeners();
+          notifDropdown.classList.add("open");
+        } else {
+          notifDropdown.classList.remove("open");
+        }
+      });
+
+      document.addEventListener("click", (e) => {
+        if (notifDropdown.classList.contains("open") && !notifDropdown.contains(e.target) && !notifBellBtn.contains(e.target)) {
+          notifDropdown.classList.remove("open");
+        }
+      });
+    }
+
+    function attachNotifFilterListeners() {
+      if (!notifDropdown) return;
+      notifDropdown.querySelectorAll(".notif-tab-btn").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const filter = btn.getAttribute("data-notif-filter");
+          notifDropdown.innerHTML = renderNotificationDropdownContent(filter);
+          attachNotifFilterListeners();
+        });
+      });
+    }
+
     // Sim Toggle
     const simBtn = document.getElementById("toggle-sim-btn");
     if (simBtn) {
@@ -255,7 +424,7 @@ window.MS_UI = (function () {
       });
     }
 
-    // Sync state on ticks
+    // Sync state on ticks & notification changes
     window.msStore.subscribe((s) => {
       const liveText = document.getElementById("live-status-text");
       const liveTick = document.getElementById("live-tick-count");
@@ -263,6 +432,24 @@ window.MS_UI = (function () {
       if (liveText) liveText.textContent = s.simRunning ? "LIVE MONITORING" : "SIMULATION PAUSED";
       if (liveTick) liveTick.textContent = `#${s.tick || 260}`;
       if (simBtnEl) simBtnEl.textContent = s.simRunning ? "⏸" : "▶";
+
+      // Sync notification badge
+      const unreadCount = (s.notifications || []).filter((n) => !n.read).length;
+      const notifBadge = document.getElementById("notif-badge-count");
+      if (notifBadge) {
+        notifBadge.textContent = unreadCount;
+        if (unreadCount > 0) {
+          notifBadge.classList.add("has-unread");
+        } else {
+          notifBadge.classList.remove("has-unread");
+        }
+      }
+
+      // If dropdown is open, re-render its list
+      if (notifDropdown && notifDropdown.classList.contains("open")) {
+        notifDropdown.innerHTML = renderNotificationDropdownContent(currentNotifFilter);
+        attachNotifFilterListeners();
+      }
     });
   }
 
@@ -451,6 +638,8 @@ window.MS_UI = (function () {
     renderAppShell,
     attachLayoutEvents,
     getProfileHtml,
+    playNotificationChime,
+    renderNotificationDropdownContent,
     timeAgo,
     fmtTime,
     getBadgeClass

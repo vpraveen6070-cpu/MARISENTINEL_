@@ -1,9 +1,55 @@
 /**
  * MARISENTINEL — Vanilla JS Central State Store & Simulation Engine
+ * Incorporates strict maritime geofencing & real-time threat telemetry.
  */
 
 (function () {
-  const STORAGE_KEY = "marisentinel_state_v2";
+  const STORAGE_KEY = "marisentinel_state_v4"; // Bumped version to include real-time notification engine
+
+  /* ---------------- Maritime Geofencing Engine ---------------- */
+  function getWestCoastMinLng(lat) {
+    if (lat <= 9.0) return 79.2;
+    if (lat <= 11.0) return 79.8 + ((lat - 9.0) * (80.0 - 79.8)) / 2.0;
+    if (lat <= 13.0) return 80.0 + ((lat - 11.0) * (80.35 - 80.0)) / 2.0;
+    if (lat <= 15.5) return 80.35 + ((lat - 13.0) * (80.25 - 80.35)) / 2.5;
+    if (lat <= 16.5) return 80.25 + ((lat - 15.5) * (81.8 - 80.25)) / 1.0;
+    if (lat <= 17.5) return 81.8 + ((lat - 16.5) * (83.2 - 81.8)) / 1.0;
+    if (lat <= 18.5) return 83.2 + ((lat - 17.5) * (84.1 - 83.2)) / 1.0;
+    if (lat <= 19.5) return 84.1 + ((lat - 18.5) * (85.2 - 84.1)) / 1.0;
+    if (lat <= 20.5) return 85.2 + ((lat - 19.5) * (86.8 - 85.2)) / 1.0;
+    if (lat <= 21.5) return 86.8 + ((lat - 20.5) * (87.7 - 86.8)) / 1.0;
+    return 87.7 + ((lat - 21.5) * (88.5 - 87.7)) / 0.5;
+  }
+
+  function getEastCoastMaxLng(lat) {
+    if (lat >= 21.0) return 91.8;
+    if (lat >= 20.0) return 92.4;
+    if (lat >= 18.0) return 93.6;
+    if (lat >= 16.0) return 94.4;
+    if (lat >= 14.0) return 97.2;
+    return 98.0;
+  }
+
+  function isPointInMaritimeArea(lat, lng) {
+    if (typeof lat !== "number" || typeof lng !== "number" || isNaN(lat) || isNaN(lng)) return false;
+    if (lat < 8.0 || lat > 21.9) return false;
+    const minLng = getWestCoastMinLng(lat);
+    const maxLng = getEastCoastMaxLng(lat);
+    return lng >= minLng && lng <= maxLng;
+  }
+
+  function clampToMaritime(lat, lng) {
+    let safeLat = Math.min(21.75, Math.max(9.0, lat || 17.5));
+    const minLng = getWestCoastMinLng(safeLat) + 0.12; // safe offshore buffer
+    const maxLng = getEastCoastMaxLng(safeLat) - 0.12;
+    let safeLng = Math.min(maxLng, Math.max(minLng, lng || 84.5));
+    return [Math.round(safeLat * 1000) / 1000, Math.round(safeLng * 1000) / 1000];
+  }
+
+  window.MS_GEO = {
+    isPointInMaritimeArea,
+    clampToMaritime
+  };
 
   class MsStore {
     constructor() {
@@ -15,15 +61,31 @@
 
     loadState() {
       try {
+        // Clean up legacy keys
+        localStorage.removeItem("marisentinel_state_v2");
+        localStorage.removeItem("marisentinel_state_v3");
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          return { ...window.MS_SEED, ...parsed };
+          const sanitizedVessels = (parsed.vessels || window.MS_SEED.vessels).map((v) => {
+            if (!isPointInMaritimeArea(v.lat, v.lng)) {
+              const [cLat, cLng] = clampToMaritime(v.lat, v.lng);
+              return { ...v, lat: cLat, lng: cLng };
+            }
+            return v;
+          });
+          return {
+            ...window.MS_SEED,
+            ...parsed,
+            vessels: sanitizedVessels,
+            notifications: parsed.notifications || window.MS_SEED.notifications || [],
+            simRunning: true
+          };
         }
       } catch (e) {
         console.warn("Using default seed dataset:", e);
       }
-      return { ...window.MS_SEED, session: null, simRunning: true, tick: 260 };
+      return { ...window.MS_SEED, session: null, simRunning: true, tick: 280, notifications: window.MS_SEED.notifications || [] };
     }
 
     saveState() {
@@ -45,7 +107,11 @@
 
     notify() {
       this.listeners.forEach((fn) => {
-        try { fn(this.state); } catch (e) { console.error(e); }
+        try {
+          fn(this.state);
+        } catch (e) {
+          console.error(e);
+        }
       });
     }
 
@@ -100,8 +166,8 @@
         status: "active",
         lastLogin: new Date().toISOString(),
         availability: role === "field" ? "available" : undefined,
-        lat: role === "field" ? 17.65 : undefined,
-        lng: role === "field" ? 83.35 : undefined
+        lat: role === "field" ? 17.68 : undefined,
+        lng: role === "field" ? 83.38 : undefined
       };
       this.setState((s) => ({
         ...s,
@@ -149,13 +215,14 @@
     }
 
     addZone(name, classification, lat, lng, radiusKm, description) {
+      const [cLat, cLng] = clampToMaritime(parseFloat(lat), parseFloat(lng));
       const newZone = {
         id: "ZN-" + Math.floor(Math.random() * 9000 + 1000),
         name,
         classification,
-        lat: parseFloat(lat),
-        lng: parseFloat(lng),
-        radiusKm: parseFloat(radiusKm),
+        lat: cLat,
+        lng: cLng,
+        radiusKm: parseFloat(radiusKm) || 25,
         status: "active",
         description: description || "Operational coastal security sector."
       };
@@ -243,13 +310,66 @@
         ...s,
         sources: s.sources.map((src) =>
           src.id === sourceId
-            ? { ...src, status: src.status === "connected" ? "disconnected" : "connected", lastSync: new Date().toISOString() }
+            ? {
+                ...src,
+                status: src.status === "connected" ? "disconnected" : "connected",
+                lastSync: new Date().toISOString()
+              }
             : src
         )
       }));
       const updated = this.state.sources.find((x) => x.id === sourceId);
       this.logAudit("Data Sources", `Updated data source ${updated?.name} status to ${updated?.status}`);
       if (window.MS_UI) window.MS_UI.showToast(`Source ${updated?.name} status: ${updated?.status}`);
+    }
+
+    /* ---------------- Notification Hub ---------------- */
+    addNotification(title, message, type = "threat", severity = "high", meta = {}) {
+      const newNotif = {
+        id: "NOTIF-" + Math.floor(Math.random() * 90000 + 10000),
+        title,
+        message,
+        type, // 'threat', 'mission', 'system', 'operational'
+        severity, // 'critical', 'high', 'info'
+        read: false,
+        ts: new Date().toISOString(),
+        ...meta
+      };
+
+      this.setState((s) => ({
+        ...s,
+        notifications: [newNotif, ...(s.notifications || [])].slice(0, 40)
+      }));
+
+      // Trigger audio chime if UI exists
+      if (window.MS_UI && window.MS_UI.playNotificationChime) {
+        window.MS_UI.playNotificationChime(severity);
+      }
+    }
+
+    markNotificationRead(notifId) {
+      this.setState((s) => ({
+        ...s,
+        notifications: (s.notifications || []).map((n) =>
+          n.id === notifId ? { ...n, read: true } : n
+        )
+      }));
+    }
+
+    markAllNotificationsRead() {
+      this.setState((s) => ({
+        ...s,
+        notifications: (s.notifications || []).map((n) => ({ ...n, read: true }))
+      }));
+      if (window.MS_UI) window.MS_UI.showToast("All notifications marked as read.");
+    }
+
+    clearNotifications() {
+      this.setState((s) => ({
+        ...s,
+        notifications: []
+      }));
+      if (window.MS_UI) window.MS_UI.showToast("Notifications cleared.");
     }
 
     /* ---------------- Audit Logging ---------------- */
@@ -273,7 +393,7 @@
     confirmAlert(alertId, assignedOfficerId = "usr-field-1") {
       const alert = this.state.alerts.find((a) => a.id === alertId);
       if (!alert) return;
-      const officer = this.state.users.find(u => u.id === assignedOfficerId);
+      const officer = this.state.users.find((u) => u.id === assignedOfficerId);
       const newInc = {
         id: "INC-" + Math.floor(Math.random() * 9000 + 1000),
         title: `${alert.threatType} — ${alert.vesselName}`,
@@ -291,21 +411,34 @@
         description: `Confirmed incident from alert ${alert.id}. Zone: ${alert.zoneName}.`,
         missionStatus: "Assigned & Dispatched",
         timeline: [
-          { ts: new Date().toISOString(), actor: this.state.session?.name || "Command Officer", status: "Confirmed", note: `Alert confirmed. Dispatched to ${officer?.name || 'Field Unit'}.` }
+          {
+            ts: new Date().toISOString(),
+            actor: this.state.session?.name || "Command Officer",
+            status: "Confirmed",
+            note: `Alert confirmed. Dispatched to ${officer?.name || "Field Unit"}.`
+          }
         ]
       };
       this.setState((s) => ({
         ...s,
         alerts: s.alerts.map((a) => (a.id === alertId ? { ...a, status: "Resolved" } : a)),
         incidents: [newInc, ...s.incidents],
-        users: s.users.map(u => u.id === assignedOfficerId ? { ...u, availability: "on-mission" } : u)
+        users: s.users.map((u) => (u.id === assignedOfficerId ? { ...u, availability: "on-mission" } : u))
       }));
       this.logAudit("Alerts", `Confirmed alert ${alertId} and dispatched ${officer?.name || assignedOfficerId} for ${newInc.id}`);
-      if (window.MS_UI) window.MS_UI.showToast(`Alert confirmed. ${newInc.id} dispatched to ${officer?.name || 'field'}.`);
+      this.addNotification(
+        "🎯 Mission Dispatched: " + newInc.id,
+        `Dispatched to ${officer?.name || 'Field Unit'} for ${alert.vesselName} (${alert.threatType}).`,
+        "mission",
+        "high",
+        { incidentId: newInc.id, vesselId: alert.vesselId }
+      );
+      if (window.MS_UI) window.MS_UI.showToast(`Alert confirmed. ${newInc.id} dispatched to ${officer?.name || "field"}.`);
     }
 
     createIncident(title, category, vesselName, riskLevel, risk, assignedOfficerId, lat, lng, description) {
-      const officer = this.state.users.find(u => u.id === assignedOfficerId);
+      const officer = this.state.users.find((u) => u.id === assignedOfficerId);
+      const [cLat, cLng] = clampToMaritime(parseFloat(lat), parseFloat(lng));
       const newInc = {
         id: "INC-" + Math.floor(Math.random() * 9000 + 1000),
         title,
@@ -318,21 +451,92 @@
         detectedAt: new Date().toISOString(),
         assignedTo: assignedOfficerId,
         deadline: new Date(Date.now() + 90 * 60000).toISOString(),
-        lat: parseFloat(lat) || 17.65,
-        lng: parseFloat(lng) || 83.35,
+        lat: cLat,
+        lng: cLng,
         description: description || "Tactical interception and vessel boarding authorization.",
         missionStatus: "Assigned & Dispatched",
         timeline: [
-          { ts: new Date().toISOString(), actor: this.state.session?.name || "Command Officer", status: "Created", note: `Incident created and dispatched to ${officer?.name || 'Field Officer'}.` }
+          {
+            ts: new Date().toISOString(),
+            actor: this.state.session?.name || "Command Officer",
+            status: "Created",
+            note: `Incident created and dispatched to ${officer?.name || "Field Officer"}.`
+          }
         ]
       };
       this.setState((s) => ({
         ...s,
         incidents: [newInc, ...s.incidents],
-        users: s.users.map(u => u.id === assignedOfficerId ? { ...u, availability: "on-mission" } : u)
+        users: s.users.map((u) => (u.id === assignedOfficerId ? { ...u, availability: "on-mission" } : u))
       }));
       this.logAudit("Incidents", `Command created incident ${newInc.id} and dispatched to ${officer?.name || assignedOfficerId}`);
+      this.addNotification(
+        "🎯 Tactical Incident Created: " + newInc.id,
+        `${title} assigned to ${officer?.name || 'Field Unit'}.`,
+        "mission",
+        risk >= 80 ? "critical" : "high",
+        { incidentId: newInc.id }
+      );
       if (window.MS_UI) window.MS_UI.showToast(`Incident ${newInc.id} created & assigned.`);
+    }
+
+    escalateVesselToIncident(vesselId, assignedOfficerId = "usr-field-1") {
+      const v = this.state.vessels.find((x) => x.id === vesselId);
+      if (!v) return;
+      const officer = this.state.users.find((u) => u.id === assignedOfficerId);
+      const newInc = {
+        id: "INC-" + Math.floor(Math.random() * 9000 + 1000),
+        title: `Tactical Intercept — ${v.name} (${v.type})`,
+        category: "Hostile Contact / EEZ Breach",
+        riskLevel: v.risk >= 80 ? "Critical" : "High",
+        risk: v.risk,
+        status: "In Progress",
+        vesselName: v.name,
+        vesselId: v.id,
+        detectedAt: new Date().toISOString(),
+        assignedTo: assignedOfficerId,
+        deadline: new Date(Date.now() + 60 * 60000).toISOString(),
+        lat: v.lat,
+        lng: v.lng,
+        description: `Direct command escalation for ${v.name}. Violated rules: ${(v.behaviours || []).join(", ") || "Elevated threat score"}.`,
+        missionStatus: "Assigned & Dispatched",
+        timeline: [
+          {
+            ts: new Date().toISOString(),
+            actor: this.state.session?.name || "Tactical Command",
+            status: "Escalated to Incident",
+            note: `Direct operational order issued. Interception dispatched to ${officer?.name || "Field Unit"}.`
+          }
+        ]
+      };
+      this.setState((s) => ({
+        ...s,
+        incidents: [newInc, ...s.incidents],
+        users: s.users.map((u) => (u.id === assignedOfficerId ? { ...u, availability: "on-mission" } : u))
+      }));
+      this.logAudit("Threat Intelligence", `Escalated threat ${v.name} (${v.id}) to incident ${newInc.id}`);
+      this.addNotification(
+        "🚨 Direct Intercept Order: " + v.name,
+        `Command escalated ${v.name} (Risk ${v.risk}/100) to Incident ${newInc.id}.`,
+        "threat",
+        "critical",
+        { incidentId: newInc.id, vesselId: v.id }
+      );
+      if (window.MS_UI) window.MS_UI.showToast(`Threat escalated! Incident ${newInc.id} dispatched to ${officer?.name || "unit"}.`);
+    }
+
+    sendAisHail(vesselId) {
+      const v = this.state.vessels.find((x) => x.id === vesselId);
+      if (!v) return;
+      this.logAudit("Comms", `Sent VHF Ch 16 / AIS Safety Hail to ${v.name} (MMSI: ${v.mmsi})`);
+      this.addNotification(
+        "📡 VHF / AIS Warning Transmitted",
+        `Official safety hail sent to ${v.name} (MMSI: ${v.mmsi}, Callsign: ${v.callsign || 'N/A'}).`,
+        "system",
+        "info",
+        { vesselId: v.id }
+      );
+      if (window.MS_UI) window.MS_UI.showToast(`📡 AIS Challenge transmitted to ${v.name} (Ch 16 / DSC).`);
     }
 
     rejectAlert(alertId) {
@@ -362,6 +566,13 @@
         )
       }));
       this.logAudit("Incidents", `Officer updated incident ${incidentId} to ${status}`);
+      this.addNotification(
+        `⚡ Status: ${status} (${incidentId})`,
+        `${actor}: ${note || 'Updated tactical execution stage.'}`,
+        "mission",
+        status === "Request Interception" ? "critical" : "high",
+        { incidentId }
+      );
       if (window.MS_UI) window.MS_UI.showToast(`Incident status: ${status}`);
     }
 
@@ -395,19 +606,31 @@
                 evidence: [...(i.evidence || []), evidenceObj],
                 timeline: [
                   ...i.timeline,
-                  { ts: new Date().toISOString(), actor: this.state.session?.name || "Field Officer", status: "Evidence Uploaded", note: `Attached: ${evidenceObj.name} (${evidenceObj.type})` }
+                  {
+                    ts: new Date().toISOString(),
+                    actor: this.state.session?.name || "Field Officer",
+                    status: "Evidence Uploaded",
+                    note: `Attached: ${evidenceObj.name} (${evidenceObj.type})`
+                  }
                 ]
               }
             : i
         )
       }));
       this.logAudit("Incidents", `Evidence attached to ${incidentId}: ${evidenceObj.name}`);
+      this.addNotification(
+        "📸 New Evidence Uploaded",
+        `Field attached ${evidenceObj.name} (${evidenceObj.type}) to ${incidentId}.`,
+        "mission",
+        "info",
+        { incidentId }
+      );
       if (window.MS_UI) window.MS_UI.showToast(`Evidence ${evidenceObj.name} saved.`);
     }
 
     rejectIncident(incidentId, reason = "Operational conflict / vessel out of intercept range.") {
       const actor = this.state.session?.name || "Field Officer";
-      const inc = this.state.incidents.find(i => i.id === incidentId);
+      const inc = this.state.incidents.find((i) => i.id === incidentId);
       this.setState((s) => ({
         ...s,
         incidents: s.incidents.map((i) =>
@@ -424,14 +647,23 @@
               }
             : i
         ),
-        users: s.users.map(u => u.id === inc?.assignedTo ? { ...u, availability: "available" } : u)
+        users: s.users.map((u) => (u.id === inc?.assignedTo ? { ...u, availability: "available" } : u))
       }));
       this.logAudit("Incidents", `Officer declined assignment for ${incidentId}: ${reason}`);
+      this.addNotification(
+        "⚠️ Mission Assignment Declined",
+        `Officer declined ${incidentId}: "${reason}"`,
+        "mission",
+        "high",
+        { incidentId }
+      );
       if (window.MS_UI) window.MS_UI.showToast(`Mission assignment declined.`);
     }
 
     simulateOfficerMovement(officerId = "usr-field-1", targetIncidentId) {
-      const inc = this.state.incidents.find(i => targetIncidentId ? i.id === targetIncidentId : (i.status !== "Closed" && i.assignedTo === officerId));
+      const inc = this.state.incidents.find((i) =>
+        targetIncidentId ? i.id === targetIncidentId : i.status !== "Closed" && i.assignedTo === officerId
+      );
       if (!inc) {
         if (window.MS_UI) window.MS_UI.showToast("No active mission target for movement simulation.");
         return;
@@ -441,20 +673,25 @@
         ...s,
         users: s.users.map((u) => {
           if (u.id === officerId && u.lat && u.lng) {
-            // Move 30% closer to target incident coords
-            const newLat = u.lat + (inc.lat - u.lat) * 0.35;
-            const newLng = u.lng + (inc.lng - u.lng) * 0.35;
-            return { ...u, lat: parseFloat(newLat.toFixed(4)), lng: parseFloat(newLng.toFixed(4)), availability: "on-mission" };
+            const rawLat = u.lat + (inc.lat - u.lat) * 0.35;
+            const rawLng = u.lng + (inc.lng - u.lng) * 0.35;
+            const [cLat, cLng] = clampToMaritime(rawLat, rawLng);
+            return {
+              ...u,
+              lat: cLat,
+              lng: cLng,
+              availability: "on-mission"
+            };
           }
           return u;
         })
       }));
-      if (window.MS_UI) window.MS_UI.showToast("Interceptor moving toward target...");
+      if (window.MS_UI) window.MS_UI.showToast("⚡ Interceptor craft underway toward target contact...");
     }
 
     closeIncident(incidentId, findings = "Mission completed successfully.") {
       const actor = this.state.session?.name || "Command Officer";
-      const inc = this.state.incidents.find(i => i.id === incidentId);
+      const inc = this.state.incidents.find((i) => i.id === incidentId);
       this.setState((s) => ({
         ...s,
         incidents: s.incidents.map((i) =>
@@ -470,9 +707,16 @@
               }
             : i
         ),
-        users: s.users.map(u => u.id === inc?.assignedTo ? { ...u, availability: "available" } : u)
+        users: s.users.map((u) => (u.id === inc?.assignedTo ? { ...u, availability: "available" } : u))
       }));
       this.logAudit("Incidents", `Closed & archived incident ${incidentId}`);
+      this.addNotification(
+        "✓ Incident Resolved & Archived",
+        `${incidentId} closed: "${findings}"`,
+        "mission",
+        "info",
+        { incidentId }
+      );
       if (window.MS_UI) window.MS_UI.showToast(`Incident ${incidentId} closed & archived.`);
     }
 
@@ -494,23 +738,35 @@
 
     tick() {
       this.setState((s) => {
-        const nextTick = (s.tick || 260) + 1;
+        const nextTick = (s.tick || 280) + 1;
         const newAlerts = [];
 
-        // Drift vessels along their courses
+        // Drift vessels along maritime lanes
         const updatedVessels = (s.vessels || []).map((v) => {
-          const drift = 0.008 + Math.random() * 0.015;
-          const rad = (v.course * Math.PI) / 180;
-          const lat = Math.min(22.5, Math.max(10.0, v.lat + Math.cos(rad) * drift * (v.speed / 10)));
-          const lng = Math.min(94.0, Math.max(80.0, v.lng + Math.sin(rad) * drift * (v.speed / 10)));
-          const speed = Math.max(0.2, Math.round((v.speed + (Math.random() - 0.5) * 0.8) * 10) / 10);
-          const course = Math.round((v.course + (Math.random() - 0.5) * 8 + 360) % 360);
+          const drift = 0.006 + Math.random() * 0.012;
+          let rad = (v.course * Math.PI) / 180;
+          let nextLat = v.lat + Math.cos(rad) * drift * (v.speed / 10);
+          let nextLng = v.lng + Math.sin(rad) * drift * (v.speed / 10);
+          let nextCourse = v.course;
+
+          // Strictly geofence in Bay of Bengal water
+          if (!isPointInMaritimeArea(nextLat, nextLng)) {
+            // Steer vessel back into open sea
+            nextCourse = Math.round((v.course + 135 + Math.random() * 60) % 360);
+            const [cLat, cLng] = clampToMaritime(nextLat, nextLng);
+            nextLat = cLat;
+            nextLng = cLng;
+          } else {
+            nextCourse = Math.round((v.course + (Math.random() - 0.5) * 6 + 360) % 360);
+          }
+
+          const speed = Math.max(0.2, Math.round((v.speed + (Math.random() - 0.5) * 0.5) * 10) / 10);
 
           // Check if in restricted zone
           let insideRestricted = false;
           let activeZoneName = "Open water";
           for (const z of s.zones || []) {
-            const dist = Math.hypot(lat - z.lat, lng - z.lng) * 111;
+            const dist = Math.hypot(nextLat - z.lat, nextLng - z.lng) * 111;
             if (dist <= z.radiusKm) {
               activeZoneName = z.name;
               if (z.classification === "Critical" || z.classification === "Restricted") {
@@ -521,13 +777,13 @@
 
           let risk = v.risk;
           if (insideRestricted) {
-            risk = Math.min(100, Math.max(75, risk + Math.floor(Math.random() * 4)));
+            risk = Math.min(100, Math.max(78, risk + Math.floor(Math.random() * 3)));
           } else {
-            risk = Math.max(10, Math.min(95, risk + Math.floor((Math.random() - 0.5) * 3)));
+            risk = Math.max(10, Math.min(95, risk + Math.floor((Math.random() - 0.5) * 2)));
           }
 
           // Random alert generation for high risk vessels
-          if (risk >= 75 && Math.random() > 0.85) {
+          if (risk >= 80 && Math.random() > 0.9) {
             newAlerts.push({
               id: "AL-" + Math.floor(Math.random() * 9000 + 1000),
               ts: new Date().toISOString(),
@@ -535,23 +791,26 @@
               vesselName: v.name,
               threatType: insideRestricted ? "Restricted Zone Intrusion" : "Erratic Vessel Trajectory",
               risk,
-              severity: risk > 80 ? "Critical" : "High",
+              severity: risk > 82 ? "Critical" : "High",
               zoneName: activeZoneName,
               status: "New",
-              lat: Math.round(lat * 1000) / 1000,
-              lng: Math.round(lng * 1000) / 1000,
+              lat: Math.round(nextLat * 1000) / 1000,
+              lng: Math.round(nextLng * 1000) / 1000,
               behaviours: ["Automated detector trigger"]
             });
           }
 
-          const trail = [...(v.trail || []).slice(-10), [Math.round(lat * 1000) / 1000, Math.round(lng * 1000) / 1000]];
+          const trail = [
+            ...(v.trail || []).slice(-12),
+            [Math.round(nextLat * 1000) / 1000, Math.round(nextLng * 1000) / 1000]
+          ];
 
           return {
             ...v,
-            lat: Math.round(lat * 1000) / 1000,
-            lng: Math.round(lng * 1000) / 1000,
+            lat: Math.round(nextLat * 1000) / 1000,
+            lng: Math.round(nextLng * 1000) / 1000,
             speed,
-            course,
+            course: nextCourse,
             risk,
             trail,
             lastUpdate: new Date().toISOString()

@@ -243,7 +243,7 @@
                   </div>
                   <div class="panel-body" style="max-height: 180px; overflow-y: auto;">
                     ${highRiskVessels.map(v => `
-                      <div style="padding: 6px 0; border-bottom: 1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="window.openVesselModal('${v.id}')">
+                      <div style="padding: 6px 0; border-bottom: 1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="window.openThreatDossier('${v.id}')">
                         <div>
                           <strong style="font-size:12px; color:var(--primary);">${v.name}</strong>
                           <span style="font-size:10px; color:var(--text-muted); display:block;">${v.type} · ${v.speed} kts</span>
@@ -265,7 +265,7 @@
                 <div class="panel-body">
                   ${openAlerts.slice(0, 4).map(a => `
                     <div style="padding: 10px 0; border-bottom: 1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
-                      <div>
+                      <div style="cursor:pointer;" onclick="window.openThreatDossier('${a.vesselId}')">
                         <div style="display:flex; align-items:center; gap:6px;">
                           <span class="badge ${a.severity === 'Critical' ? 'badge-critical' : a.severity === 'High' ? 'badge-danger' : 'badge-warn'}">${a.severity}</span>
                           <strong style="font-size:13px;">${a.vesselName}</strong>
@@ -273,7 +273,8 @@
                         <p style="font-size:11px; color:var(--text-muted); margin-top:2px;">${a.threatType} · ${a.zoneName} (Score: ${a.risk}/100)</p>
                       </div>
                       <div style="display:flex; gap:6px;">
-                        <button class="btn btn-primary btn-sm" onclick="window.openDispatchModal('${a.id}')">Confirm & Assign</button>
+                        <button class="btn btn-secondary btn-sm" onclick="window.openThreatDossier('${a.vesselId}')">Inspect</button>
+                        <button class="btn btn-primary btn-sm" onclick="window.openDispatchModal('${a.id}')">Assign</button>
                         <button class="btn btn-secondary btn-sm" onclick="window.msStore.rejectAlert('${a.id}'); renderTab('overview');">Dismiss</button>
                       </div>
                     </div>
@@ -291,7 +292,7 @@
                     <div style="padding: 10px 0; border-bottom: 1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
                       <div>
                         <strong>${o.name}</strong>
-                        <p style="font-size:11px; color:var(--text-muted);">${o.region} (${o.lat || 17.65}°N, ${o.lng || 83.35}°E)</p>
+                        <p style="font-size:11px; color:var(--text-muted);">${o.region} (${o.lat || 17.68}°N, ${o.lng || 83.38}°E)</p>
                       </div>
                       <span class="badge ${o.availability === 'available' ? 'badge-ok' : 'badge-warn'}">${o.availability ? o.availability.toUpperCase() : 'STANDBY'}</span>
                     </div>
@@ -352,17 +353,18 @@
                       <tr>
                         <td><span class="mono">${window.MS_UI.fmtTime(a.ts)}</span></td>
                         <td><span class="badge ${a.severity === 'Critical' ? 'badge-critical' : a.severity === 'High' ? 'badge-danger' : 'badge-warn'}">${a.severity}</span></td>
-                        <td><strong>${a.vesselName}</strong></td>
+                        <td><strong style="cursor:pointer; color:var(--primary);" onclick="window.openThreatDossier('${a.vesselId}')">${a.vesselName}</strong></td>
                         <td>${a.threatType}</td>
                         <td>${a.zoneName}</td>
                         <td><strong style="color:${a.risk >= 80 ? 'var(--tertiary)' : a.risk >= 60 ? 'var(--status-danger)' : 'var(--status-warn)'};">${a.risk}/100</strong></td>
                         <td><span class="badge ${a.status === 'New' ? 'badge-danger' : a.status === 'Resolved' ? 'badge-ok' : 'badge-neutral'}">${a.status}</span></td>
                         <td style="text-align:right;">
+                          <button class="btn btn-secondary btn-sm" onclick="window.openThreatDossier('${a.vesselId}')">Dossier</button>
                           ${a.status === 'New' ? `
-                            <button class="btn btn-primary btn-sm" onclick="window.openDispatchModal('${a.id}')">Confirm & Assign</button>
+                            <button class="btn btn-primary btn-sm" onclick="window.openDispatchModal('${a.id}')">Assign</button>
                             <button class="btn btn-secondary btn-sm" onclick="window.msStore.rejectAlert('${a.id}'); renderTab('alerts');">Dismiss</button>
                           ` : `
-                            <span style="color:var(--text-muted); font-size:11px;">Processed</span>
+                            <span style="color:var(--text-muted); font-size:11px; margin-left:4px;">Processed</span>
                           `}
                         </td>
                       </tr>
@@ -398,7 +400,7 @@
                   <tbody>
                     ${s.vessels.map(v => `
                       <tr>
-                        <td><strong>${v.name}</strong><br><span class="mono" style="font-size:10px; color:var(--text-muted);">MMSI: ${v.mmsi}</span></td>
+                        <td><strong style="cursor:pointer; color:var(--primary);" onclick="window.openThreatDossier('${v.id}')">${v.name}</strong><br><span class="mono" style="font-size:10px; color:var(--text-muted);">MMSI: ${v.mmsi}</span></td>
                         <td>${v.flag} · ${v.type}</td>
                         <td>${v.speed} kts · ${v.course}°</td>
                         <td><span class="mono">${v.lat}°N, ${v.lng}°E</span></td>
@@ -407,7 +409,7 @@
                           ${v.behaviours && v.behaviours.length ? v.behaviours.map(b => `<span class="badge badge-danger" style="margin-right:4px;">${b}</span>`).join("") : `<span class="badge badge-ok">Nominal</span>`}
                         </td>
                         <td style="text-align:right;">
-                          <button class="btn btn-secondary btn-sm" onclick="window.openVesselModal('${v.id}')">View Details</button>
+                          <button class="btn btn-primary btn-sm" onclick="window.openThreatDossier('${v.id}')">Threat Profile</button>
                         </td>
                       </tr>
                     `).join("")}
@@ -461,10 +463,19 @@
                     </div>
 
                     ${inc.status !== 'Closed' ? `
-                      <div style="margin-top:16px; text-align:right;">
-                        <button class="btn btn-primary btn-sm" onclick="window.msStore.closeIncident('${inc.id}'); renderTab('incidents');">Close & Archive Incident</button>
+                      <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap;">
+                        <button class="btn btn-secondary btn-sm" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Interception Authorized', 'Command approved tactical boarding & dispatched additional patrol support.'); renderTab('incidents');">
+                          ⚡ Authorize Boarding / Support
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="window.msStore.closeIncident('${inc.id}', 'Incident Resolved — Field boarding complete, vessel cleared and escorted out.'); renderTab('incidents');">
+                          ✓ Mark Incident Resolved &amp; Archive
+                        </button>
                       </div>
-                    ` : ''}
+                    ` : `
+                      <div style="margin-top:16px; text-align:right;">
+                        <span class="badge badge-ok" style="font-size:12px;">✓ Incident Resolved &amp; Archived</span>
+                      </div>
+                    `}
                   </div>
                 </div>
               `).join("")}
