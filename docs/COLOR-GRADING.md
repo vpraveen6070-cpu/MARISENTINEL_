@@ -1,103 +1,68 @@
-# MARISENTINEL — Colour Grading Reference
+# MARISENTINEL — Design System & Colour Grading Reference
 
-All UI colour lives in `src/styles.css` as semantic tokens (oklch). Operational
-colours (risk, zones, map overlays) are fixed hex values inside the map and
-chart layers so they stay identical on every theme.
+All UI tokens and color grading live in `css/styles.css` and are unified across the platform and all consoles (Command, Field, Administrator, Landing, Login).
 
-## 1. Base UI tokens — light (`:root`)
+---
 
-| Token | Value (oklch) | Approx. hex | Used for |
-| --- | --- | --- | --- |
-| `--background` | `1 0 0` | `#ffffff` | page canvas |
-| `--foreground` | `0.129 0.042 264.695` | `#020617` | primary text |
-| `--card` / `--popover` | `1 0 0` | `#ffffff` | panels, dialogs |
-| `--primary` | `0.208 0.042 265.755` | `#1e293b` | primary buttons, active nav |
-| `--primary-foreground` | `0.984 0.003 247.858` | `#f8fafc` | text on primary |
-| `--secondary` / `--muted` / `--accent` | `0.968 0.007 247.896` | `#f1f5f9` | subtle fills, hovers |
-| `--muted-foreground` | `0.554 0.046 257.417` | `#64748b` | labels, captions, meta |
-| `--destructive` | `0.577 0.245 27.325` | `#dc2626` | delete / critical actions |
-| `--border` / `--input` | `0.929 0.013 255.508` | `#e2e8f0` | hairlines, field borders |
-| `--ring` | `0.704 0.04 256.788` | `#94a3b8` | focus ring |
-| `--radius` | `0.625rem` | — | base corner radius (sm/md/lg/xl derived) |
+## 1. Core Palette Tokens
 
-## 2. Base UI tokens — dark (`.dark`, the command-centre look)
+| Token | Hex | Role | Usage Examples |
+| :--- | :--- | :--- | :--- |
+| **Primary** | `#0F172A` | Deep Midnight Slate | Primary text, brand titles, dark headers, active nav items, primary buttons |
+| **Secondary** | `#22C55E` | Fresh Emerald Green | Normal/safe vessel status, active zones, live telemetry feeds, success badges, field units |
+| **Tertiary** | `#EF4444` | Vivid Crimson Red | Critical threat alerts, high risk score (80–100), emergency dispatches, danger actions |
+| **Neutral** | `#F8FAFC` | Slate Canvas | Page background canvas, light panel fills, input backgrounds, subtle borders |
 
-| Token | Value (oklch) | Approx. hex | Used for |
-| --- | --- | --- | --- |
-| `--background` | `0.129 0.042 264.695` | `#020617` | deep navy canvas |
-| `--foreground` | `0.984 0.003 247.858` | `#f8fafc` | primary text |
-| `--card` / `--popover` / `--sidebar` | `0.208 0.042 265.755` | `#1e293b` | panels, sidebar, dialogs |
-| `--primary` | `0.929 0.013 255.508` | `#e2e8f0` | primary buttons (inverted) |
-| `--secondary` / `--muted` / `--accent` | `0.279 0.041 260.031` | `#334155` | raised surfaces, hovers |
-| `--muted-foreground` | `0.704 0.04 256.788` | `#94a3b8` | labels, captions, meta |
-| `--destructive` | `0.704 0.191 22.216` | `#f87171` | critical actions |
-| `--border` | `1 0 0 / 10%` | white @10% | hairlines |
-| `--input` | `1 0 0 / 15%` | white @15% | field borders |
-| `--ring` | `0.551 0.027 264.364` | `#64748b` | focus ring |
+---
 
-## 3. Threat / risk grading (0–100 score)
+## 2. Base UI Tokens (`:root`)
 
-Defined in `src/components/ms/MapCanvas.tsx` (`riskColor`) and mirrored in the
-map legend on `/command/map`.
+| Variable | Value | Description |
+| :--- | :--- | :--- |
+| `--primary` | `#0f172a` | Main action buttons, dominant dark components |
+| `--primary-hover` | `#1e293b` | Hover state for primary buttons |
+| `--secondary` | `#22c55e` | Success states, verified indicators, secondary action accents |
+| `--secondary-dark` | `#15803d` | Deep green chips, filled progress bars |
+| `--tertiary` | `#ef4444` | Destructive buttons, high risk badges, critical alerts |
+| `--bg-app` | `#f8fafc` | Main application canvas background |
+| `--bg-card` | `#ffffff` | Panel and metric card backgrounds |
+| `--bg-card-subtle` | `#f1f5f9` | Table headers, secondary buttons, sub-panels |
+| `--border-color` | `#e2e8f0` | Standard component and table borders |
+| `--border-strong` | `#cbd5e1` | Outlined buttons, active input borders |
+| `--text-main` | `#0f172a` | Primary readability text |
+| `--text-muted` | `#64748b` | Labels, timestamps, secondary captions |
 
-| Band | Score | Colour | Meaning |
-| --- | --- | --- | --- |
-| Low | 0–40 | `#5ce0c0` mint | passive observation |
-| Elevated | 41–60 | `#f0b23c` amber | increase monitoring, verify AIS |
-| High | 61–80 | `#f0743c` orange | investigate, prepare interception |
-| Critical | 81–100 | `#f0466a` red | dispatch officer, escalate |
+---
 
-Marker sizing is part of the grade: markers are 14 px, growing to 18 px with a
-2 px offset outline once risk passes 80.
+## 3. Operational Threat & Risk Scoring (0–100 Score)
 
-## 4. Zone classification grading
+| Band | Score | Color | Hex Code | Operational Meaning |
+| :--- | :---: | :--- | :--- | :--- |
+| **Low / Normal** | `0–40` | 🟢 Green | `#22c55e` | Standard AIS tracking, normal transit |
+| **Elevated** | `41–60` | 🟡 Amber | `#f59e0b` | Minor anomaly, increased tracking |
+| **High** | `61–80` | 🟠 Orange | `#f97316` | Suspicious loitering/maneuver, prepare response |
+| **Critical** | `81–100` | 🔴 Red | `#ef4444` | High threat, dark vessel, officer dispatch required |
 
-`ZONE_COLOR` in `MapCanvas.tsx`; circles draw at 7% fill opacity, 1.6 px solid
-stroke when active and a dashed 1 px stroke when inactive.
+---
 
-| Classification | Colour |
-| --- | --- |
-| Normal | `#4bd6b0` teal |
-| Monitoring | `#6fc7f0` cyan |
-| Restricted | `#f0b23c` amber |
-| High Risk | `#f0743c` orange |
-| Critical | `#f0466a` red |
+## 4. Zone Classification
 
-## 5. Map overlay colours
+| Classification | Color | Hex Code |
+| :--- | :--- | :--- |
+| **Normal** | Green | `#22c55e` |
+| **Monitoring** | Cyan | `#0284c7` |
+| **Restricted** | Amber | `#f59e0b` |
+| **High Risk** | Orange | `#f97316` |
+| **Critical** | Red | `#ef4444` |
 
-| Layer | Colour | Treatment |
-| --- | --- | --- |
-| Incident pins | `#f0466a` | `!` glyph, 26 px disc, 13% tint + 1.5 px ring |
-| Field officer pins | `#5ce0c0` | `F` glyph, same disc treatment |
-| Route / focus line | `#6fc7f0` | 2.4 px, dash `8 6` |
-| Vessel trail | risk colour of vessel | 1.6 px, 75% opacity, dash `5 5` |
-| Weather / squall | `#6fc7f0` | dashed circle, 6% fill |
-| Satellite footprint | `#a9b4ff` periwinkle | dashed rectangle, 4% fill |
+---
 
-## 6. Chart grading (`src/components/ms/Analytics.tsx`)
+## 5. UI Controls & Component Styles
 
-| Element | Value |
-| --- | --- |
-| Axis text / ticks | `oklch(0.7 0.028 240)`, 11 px |
-| Grid lines | `oklch(0.38 0.045 248 / 30%)` |
-| Tooltip surface | `oklch(0.22 0.038 250)` |
-| Tooltip border | `oklch(0.38 0.045 248 / 60%)` |
-| Tooltip text | `oklch(0.95 0.012 230)` |
-| Series palette | `--chart-1` … `--chart-5` from `styles.css` |
-
-Dark `--chart-*` series: `#7c5cf0` violet, `#2dd4a7` emerald, `#fbbf24` amber,
-`#a855f7` purple, `#f43f5e` rose.
-
-## 7. Accent used in controls
-
-Layer-toggle checkboxes on `/command/map` use `accent-[oklch(0.72_0.13_205)]`
-— a cyan sonar accent, the closest thing to a brand hue in the current grade.
-
-## 8. Rules when extending the grade
-
-- Never hardcode `text-white`, `bg-black`, or `bg-[#hex]` in components; add a
-  token to `:root` and `.dark`, register it in `@theme inline`, then use the
-  utility.
-- Keep every token in `oklch`.
-- Operational hexes (risk / zone / overlay) are intentionally theme-independent
-  — change them in one place (`MapCanvas.tsx`) so map and legend stay in sync.
+* **Primary Button** (`.btn-primary`): Background `#0f172a`, Text `#ffffff`
+* **Secondary Button** (`.btn-secondary`): Background `#f1f5f9`, Border `#e2e8f0`, Text `#0f172a`
+* **Inverted Button** (`.btn-inverted`): Background `#1e293b`, Text `#ffffff`
+* **Outlined Button** (`.btn-outlined`): Background transparent, Border `#cbd5e1`, Text `#0f172a`
+* **Success Button** (`.btn-success`): Background `#22c55e`, Text `#ffffff`
+* **Danger Button** (`.btn-danger`): Background `#ef4444`, Text `#ffffff`
+* **Typography**: **Inter** exclusively across all headlines, body copy, and UI controls. Tabular data uses **JetBrains Mono**.
