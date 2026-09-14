@@ -260,64 +260,6 @@
                 </div>
               </div>
             </div>
-
-            <div class="grid-2">
-              <div class="panel">
-                <div class="panel-header">
-                  <h2>Latest Threat Alerts</h2>
-                  <span class="badge badge-neutral">${openAlerts.length} Open</span>
-                </div>
-                <div class="panel-body">
-                    ${openAlerts.slice(0, 4).map(a => {
-                      const isAssigned = a.status === 'Assigned' && a.assignedTo && s.users.some(u => u.id === a.assignedTo && u.status === 'active');
-                      const displayStatus = isAssigned ? 'Assigned' : (a.status === 'Assigned' ? 'New' : a.status || 'New');
-                      return `
-                      <div style="padding: 10px 0; border-bottom: 1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
-                        <div style="cursor:pointer;" onclick="window.openThreatDossier('${a.vesselId}')">
-                          <div style="display:flex; align-items:center; gap:6px;">
-                            <span class="badge ${a.severity === 'Critical' ? 'badge-critical' : a.severity === 'High' ? 'badge-danger' : 'badge-warn'}">${a.severity}</span>
-                            <strong style="font-size:13px;">${a.vesselName}</strong>
-                            <span class="badge ${displayStatus === 'New' ? 'badge-danger' : displayStatus === 'Assigned' ? 'badge-primary' : 'badge-neutral'}" style="font-size:10px;">${displayStatus.toUpperCase()}</span>
-                          </div>
-                          <p style="font-size:11px; color:var(--text-muted); margin-top:2px;">${a.threatType} · ${a.zoneName} (Score: ${a.risk}/100)</p>
-                        </div>
-                        <div style="display:flex; gap:6px; align-items:center;">
-                          <button class="btn btn-secondary btn-sm" onclick="window.openThreatDossier('${a.vesselId}')">Inspect</button>
-                          ${displayStatus === 'New' ? `
-                            <button class="btn btn-primary btn-sm" onclick="window.openDispatchModal('${a.id}')">Assign</button>
-                            <button class="btn btn-secondary btn-sm" onclick="window.msStore.rejectAlert('${a.id}'); renderTab('overview');">Dismiss</button>
-                          ` : displayStatus === 'Assigned' ? `
-                            <span style="color:var(--primary); font-weight:600; font-size:11px; margin-left:4px;">Assigned</span>
-                          ` : `
-                            <span style="color:var(--text-muted); font-weight:600; font-size:11px; margin-left:4px;">${displayStatus}</span>
-                          `}
-                        </div>
-                      </div>
-                    `;
-                    }).join("")}
-                  </div>
-                </div>
-
-                <div class="panel">
-                  <div class="panel-header">
-                    <h2>Field Officer Readiness & Base</h2>
-                    <span class="badge badge-ok">${s.users.filter(u => u.role === 'field' && u.availability === 'available').length} Available</span>
-                  </div>
-                  <div class="panel-body">
-                    ${s.users.filter(u => u.role === 'field').map(o => `
-                      <div style="padding: 10px 0; border-bottom: 1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                          <strong>${o.name}</strong>
-                          <p style="font-size:11px; color:var(--text-muted);">${o.region} (${o.lat || 17.68}°N, ${o.lng || 83.38}°E)</p>
-                        </div>
-                        <span class="badge ${o.availability === 'available' ? 'badge-ok' : 'badge-warn'}">${o.availability ? o.availability.toUpperCase() : 'STANDBY'}</span>
-                      </div>
-                    `).join("")}
-                  </div>
-                </div>
-              </div>
-            </div>
-
           `;
 
           setTimeout(() => {
