@@ -293,13 +293,23 @@ window.MS_MAP = (function () {
         }
 
         filteredVessels.forEach((v) => {
-          const color = getRiskColor(v);
-          const score = v.riskScore ?? v.risk ?? 0;
-          const isCritical = score > 70 || v.level === "HIGH";
-          const isMedium = (score > 30 && score <= 70) || v.level === "MEDIUM";
+          const calcRisk = (typeof window !== "undefined" && window.calculateRisk) ? window.calculateRisk : () => ({ score: 0, reasons: [] });
+          const classifyThreat = (typeof window !== "undefined" && window.classifyThreat) ? window.classifyThreat : () => "Normal";
+          const freshEval = calcRisk(v, state.threatRules);
+
+          const activeAlert = (state.alerts || []).find((a) => a.vesselId === v.id || a.vesselId === v.vesselId || a.vesselName === v.name);
+          const activeInc = (state.incidents || []).find((inc) => inc.vesselId === v.id || inc.vesselId === v.vesselId || inc.vesselName === v.name);
+
+          let score = Math.max(v.riskScore ?? v.risk ?? 0, freshEval.score);
+          if (activeAlert && activeAlert.risk > score) score = activeAlert.risk;
+          if (activeInc && activeInc.risk > score) score = activeInc.risk;
+
+          const color = getRiskColor(score);
+          const isCritical = score >= 70;
+          const isMedium = score >= 35 && score < 70;
           const size = isCritical ? 24 : isMedium ? 20 : 16;
           const heading = v.heading ?? v.course ?? 0;
-          const threatType = v.threatType || (score > 70 ? "High Threat Intrusion" : score > 30 ? "Anomalous Behavior" : "Normal");
+          const threatType = (activeAlert && activeAlert.threatType) || v.threatType || classifyThreat(v, score);
           const reasonsList = v.reasons && v.reasons.length ? v.reasons : (v.behaviours || []);
 
           // Breadcrumb Trail
@@ -635,6 +645,14 @@ window.MS_MAP = (function () {
     if (!v) {
       if (window.MS_UI) window.MS_UI.showToast("Contact profile not found.", "error");
       return;
+    }
+
+    if (v.lat && v.lng) {
+      Object.values(mapInstances).forEach((m) => {
+        if (m && typeof m.panTo === "function") {
+          m.panTo([v.lat, v.lng], { animate: true });
+        }
+      });
     }
 
     let modal = document.getElementById("threat-dossier-modal");
