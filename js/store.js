@@ -4,7 +4,7 @@
  */
 
 (function () {
-  const STORAGE_KEY = "marisentinel_state_v12"; // Calibrated generative alerts (no built-in alerts, 4-5 critical threats max daily)
+  const STORAGE_KEY = "marisentinel_state_v11"; // Bumped version for reduced threat intensity (4-5 critical threats max)
 
   /* ---------------- Maritime Geofencing Engine ---------------- */
   function getWestCoastMinLng(lat) {
@@ -1098,28 +1098,25 @@
           const threatType = classifyThreat(candidate, score);
           const level = score > 70 ? "HIGH" : score > 30 ? "MEDIUM" : "LOW";
 
-          // Generative alert engine: low realistic frequency (max 4-5 critical threats daily, max 6 total open alerts)
-          const existingForVessel = (s.alerts || []).some(a => (a.vesselId === (v.vesselId || v.id) || a.vesselName === v.name) && a.status === "New");
-          const activeAlertsList = (s.alerts || []).filter(a => a.status !== "Resolved" && a.status !== "False Alarm");
-          const criticalCount = activeAlertsList.filter(a => a.severity === "Critical").length;
-          const totalAlertsCount = activeAlertsList.length;
-
-          if (score >= 75 && !existingForVessel && totalAlertsCount < 6 && Math.random() > 0.997) {
-            const isCritical = score >= 80 && criticalCount < 5;
-            newAlerts.push({
-              id: "AL-" + Math.floor(Math.random() * 9000 + 1000),
-              ts: new Date().toISOString(),
-              vesselId: v.vesselId || v.id,
-              vesselName: v.name,
-              threatType: threatType !== "Normal" ? threatType : "Restricted Zone Intrusion",
-              risk: score,
-              severity: isCritical ? "Critical" : "High",
-              zoneName: activeZoneName,
-              status: "New",
-              lat: Math.round(nextLat * 1000) / 1000,
-              lng: Math.round(nextLng * 1000) / 1000,
-              behaviours: reasons
-            });
+          // Alert generation for high threat vessels (controlled rate: max 4-5 critical threats per day)
+          if (score >= 70 && Math.random() > 0.995) {
+            const alreadyActive = (s.alerts || []).some(a => (a.vesselId === (v.vesselId || v.id) || a.vesselName === v.name) && a.status === "New");
+            if (!alreadyActive) {
+              newAlerts.push({
+                id: "AL-" + Math.floor(Math.random() * 9000 + 1000),
+                ts: new Date().toISOString(),
+                vesselId: v.vesselId || v.id,
+                vesselName: v.name,
+                threatType: threatType !== "Normal" ? threatType : "Restricted Zone Intrusion",
+                risk: score,
+                severity: score > 80 ? "Critical" : "High",
+                zoneName: activeZoneName,
+                status: "New",
+                lat: Math.round(nextLat * 1000) / 1000,
+                lng: Math.round(nextLng * 1000) / 1000,
+                behaviours: reasons
+              });
+            }
           }
 
           const trail = [
@@ -1166,7 +1163,7 @@
           });
         }
 
-        const alerts = newAlerts.length ? [...newAlerts, ...(s.alerts || [])].slice(0, 6) : s.alerts;
+        const alerts = newAlerts.length ? [...newAlerts, ...(s.alerts || [])].slice(0, 5) : s.alerts;
 
         return {
           ...s,
