@@ -477,41 +477,85 @@
             ? s.audit.filter(l => l.module.toLowerCase().includes(auditFilter.toLowerCase()) || l.user.toLowerCase().includes(auditFilter.toLowerCase()) || l.action.toLowerCase().includes(auditFilter.toLowerCase()))
             : s.audit;
 
+          const loginAudit = filteredAudit.filter(l => l.module.toUpperCase() === 'AUTH' || l.action.toLowerCase().includes('signed in') || l.action.toLowerCase().includes('login'));
+          const incidentAudit = filteredAudit.filter(l => !(l.module.toUpperCase() === 'AUTH' || l.action.toLowerCase().includes('signed in') || l.action.toLowerCase().includes('login')));
+
           container.innerHTML = `
             <div class="section-header">
               <div>
                 <h1 class="section-title">Security & System Audit Logs</h1>
-                <p class="section-subtitle">Immutable accountability trail tracking every operator action: who did what, when, from which module, and the outcome.</p>
+                <p class="section-subtitle">Immutable accountability trail tracking operator activity, divided into Login & Authentication details and Incident/Tactical actions.</p>
               </div>
               <div style="display:flex; gap:10px; align-items:center;">
                 <input type="text" class="input-field" placeholder="Filter by module or user..." value="${auditFilter}" oninput="window.updateAuditFilter(this.value)" style="width:220px; font-size:12px;" />
               </div>
             </div>
 
-            <div class="panel">
-              <div class="table-container">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>Timestamp</th>
-                      <th>Module</th>
-                      <th>Operator</th>
-                      <th>Action Executed</th>
-                      <th>Outcome</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${filteredAudit.map(l => `
+            <div class="grid-2" style="grid-template-columns: 1fr 1fr; gap: 20px; align-items: start;">
+              <!-- Block 1: Login Details -->
+              <div class="panel">
+                <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                  <h2>🔑 Login &amp; Authentication Logs</h2>
+                  <span class="badge badge-primary">${loginAudit.length} Entries</span>
+                </div>
+                <div class="table-container" style="max-height: 540px; overflow-y: auto;">
+                  <table class="data-table">
+                    <thead>
                       <tr>
-                        <td><span class="mono">${window.MS_UI.fmtTime(l.ts)}</span></td>
-                        <td><span class="badge badge-neutral">${l.module}</span></td>
-                        <td><strong>${l.user}</strong></td>
-                        <td>${l.action}</td>
-                        <td><span class="badge ${l.status === 'success' ? 'badge-ok' : 'badge-critical'}">${l.status}</span></td>
+                        <th>Timestamp</th>
+                        <th>Operator</th>
+                        <th>Login Activity</th>
+                        <th>Outcome</th>
                       </tr>
-                    `).join("")}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      ${loginAudit.length ? loginAudit.map(l => `
+                        <tr>
+                          <td><span class="mono">${window.MS_UI.fmtTime(l.ts)}</span></td>
+                          <td><strong>${l.user}</strong></td>
+                          <td>${l.action}</td>
+                          <td><span class="badge ${l.status === 'success' ? 'badge-ok' : 'badge-critical'}">${l.status}</span></td>
+                        </tr>
+                      `).join("") : `
+                        <tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:20px;">No login log entries found.</td></tr>
+                      `}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Block 2: Incident Actions -->
+              <div class="panel">
+                <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                  <h2>⚡ Incident &amp; System Actions</h2>
+                  <span class="badge badge-warn">${incidentAudit.length} Entries</span>
+                </div>
+                <div class="table-container" style="max-height: 540px; overflow-y: auto;">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Timestamp</th>
+                        <th>Module</th>
+                        <th>Operator</th>
+                        <th>Action Executed</th>
+                        <th>Outcome</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${incidentAudit.length ? incidentAudit.map(l => `
+                        <tr>
+                          <td><span class="mono">${window.MS_UI.fmtTime(l.ts)}</span></td>
+                          <td><span class="badge badge-neutral">${l.module}</span></td>
+                          <td><strong>${l.user}</strong></td>
+                          <td>${l.action}</td>
+                          <td><span class="badge ${l.status === 'success' ? 'badge-ok' : 'badge-critical'}">${l.status}</span></td>
+                        </tr>
+                      `).join("") : `
+                        <tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:20px;">No incident action log entries found.</td></tr>
+                      `}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           `;
