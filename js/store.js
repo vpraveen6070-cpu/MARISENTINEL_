@@ -1114,10 +1114,13 @@
           const threatType = classifyThreat(candidate, score);
           const level = score > 70 ? "HIGH" : score > 30 ? "MEDIUM" : "LOW";
 
-          // Alert generation for high threat vessels (controlled rate: max 4-5 critical threats per day)
-          if (score >= 70 && Math.random() > 0.995) {
-            const alreadyActive = (s.alerts || []).some(a => (a.vesselId === (v.vesselId || v.id) || a.vesselName === v.name) && a.status === "New");
-            if (!alreadyActive) {
+          // Alert generation for elevated threat vessels (score >= 35)
+          if (score >= 35) {
+            const existingAlertIndex = (s.alerts || []).findIndex(a => a.vesselId === (v.vesselId || v.id) || a.vesselName === v.name);
+            const severity = score >= 80 ? "Critical" : score >= 60 ? "High" : "Medium";
+            const zoneText = activeZoneName !== "Open water" ? activeZoneName : `${v.destination || 'Bay of Bengal'} (${Math.round(nextLat * 100) / 100}°N, ${Math.round(nextLng * 100) / 100}°E)`;
+
+            if (existingAlertIndex === -1) {
               newAlerts.push({
                 id: "AL-" + Math.floor(Math.random() * 9000 + 1000),
                 ts: new Date().toISOString(),
@@ -1125,8 +1128,8 @@
                 vesselName: v.name,
                 threatType: threatType !== "Normal" ? threatType : "Restricted Zone Intrusion",
                 risk: score,
-                severity: score > 80 ? "Critical" : "High",
-                zoneName: activeZoneName,
+                severity,
+                zoneName: zoneText,
                 status: "New",
                 lat: Math.round(nextLat * 1000) / 1000,
                 lng: Math.round(nextLng * 1000) / 1000,
@@ -1179,7 +1182,25 @@
           });
         }
 
-        const alerts = newAlerts.length ? [...newAlerts, ...(s.alerts || [])].slice(0, 5) : s.alerts;
+        // Merge newly detected alerts into existing alerts list cleanly
+        const updatedAlerts = (s.alerts || []).map(a => {
+          const v = updatedVessels.find(x => x.id === a.vesselId || x.vesselId === a.vesselId || x.name === a.vesselName);
+          if (v && v.riskScore >= 35) {
+            const severity = v.riskScore >= 80 ? "Critical" : v.riskScore >= 60 ? "High" : "Medium";
+            return {
+              ...a,
+              risk: v.riskScore,
+              severity,
+              threatType: v.threatType || a.threatType,
+              lat: v.lat,
+              lng: v.lng,
+              behaviours: v.reasons || a.behaviours
+            };
+          }
+          return a;
+        });
+
+        const alerts = [...newAlerts, ...updatedAlerts];
 
         return {
           ...s,
