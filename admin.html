@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administrator Console · MARISENTINEL</title>
+  <meta name="description" content="Configure and audit the maritime intelligence platform.">
+  
+  <link rel="icon" type="image/svg+xml" href="public/favicon.svg">
+  <link rel="icon" type="image/x-icon" href="public/favicon.ico">
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <div id="shell-sidebar-slot"></div>
+
+    <div class="app-main">
+      <div id="shell-header-slot"></div>
+
+      <main class="app-content" id="admin-view-container">
+        <!-- Dynamic Subviews -->
+      </main>
+    </div>
+  </div>
+
+  <!-- Add User Modal -->
+  <div id="user-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Create Platform Operator Account</h3>
+        <button class="toast-close" onclick="document.getElementById('user-modal').classList.remove('open')">&times;</button>
+      </div>
+      <form id="user-form">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <input type="text" id="new-user-name" class="input-field" placeholder="e.g. Lt. Arun Sharma" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Username</label>
+            <input type="text" id="new-user-username" class="input-field" placeholder="e.g. asharma" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Role</label>
+            <select id="new-user-role" class="select-field">
+              <option value="field">Field Officer</option>
+              <option value="command">Command Officer</option>
+              <option value="administrator">Administrator</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Region / Operational Base</label>
+            <input type="text" id="new-user-region" class="input-field" placeholder="e.g. Paradip Coast Guard Base" required />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('user-modal').classList.remove('open')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create User Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Zone Modal -->
+  <div id="zone-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Establish Geofenced Security Zone</h3>
+        <button class="toast-close" onclick="document.getElementById('zone-modal').classList.remove('open')">&times;</button>
+      </div>
+      <form id="zone-form">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Zone Name</label>
+            <input type="text" id="new-zone-name" class="input-field" placeholder="e.g. Dhamra LNG Terminal Perimeter" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Classification</label>
+            <select id="new-zone-class" class="select-field">
+              <option value="Normal">Normal (Navigational Corridor)</option>
+              <option value="Monitoring">Monitoring (Coastal Sector)</option>
+              <option value="Restricted">Restricted (Port Approach)</option>
+              <option value="High Risk">High Risk (Offshore Energy SPM)</option>
+              <option value="Critical">Critical (Naval / Submarine Base)</option>
+            </select>
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Latitude (°N)</label>
+              <input type="number" step="0.01" id="new-zone-lat" class="input-field" placeholder="20.80" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Longitude (°E)</label>
+              <input type="number" step="0.01" id="new-zone-lng" class="input-field" placeholder="87.05" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Radius (km)</label>
+            <input type="number" id="new-zone-radius" class="input-field" placeholder="25" required />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('zone-modal').classList.remove('open')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Establish Zone</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Threat Rule Modal -->
+  <div id="rule-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Define Threat Scoring Logic Rule</h3>
+        <button class="toast-close" onclick="document.getElementById('rule-modal').classList.remove('open')">&times;</button>
+      </div>
+      <form id="rule-form">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Rule Name</label>
+            <input type="text" id="new-rule-name" class="input-field" placeholder="e.g. Sudden High-Speed Acceleration" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Trigger Logic Description</label>
+            <input type="text" id="new-rule-desc" class="input-field" placeholder="e.g. Vessel speed exceeds 25 kts in shallow coastal zone" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Risk Weight Penalty Score (+pts)</label>
+            <input type="number" id="new-rule-weight" class="input-field" placeholder="25" min="5" max="50" required />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('rule-modal').classList.remove('open')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Deploy Threat Rule</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/services/riskEngine.js"></script>
+  <script src="js/services/threatEngine.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/map.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      await window.msStore.ready;
+      const { sidebarHtml, headerHtml } = window.MS_UI.renderAppShell("administrator", "overview");
+      document.getElementById("shell-sidebar-slot").outerHTML = sidebarHtml;
+      document.getElementById("shell-header-slot").outerHTML = headerHtml;
+
+      let currentTab = "overview";
+      let auditFilter = "";
+
+      function renderTab(tab) {
+        currentTab = tab || currentTab;
+        const container = document.getElementById("admin-view-container");
+        const s = window.msStore.getState();
+
+        if (tab === "overview") {
+          const connected = s.sources.filter(x => x.status === "connected").length;
+          const health = Math.round((connected / Math.max(1, s.sources.length)) * 100);
+
+          container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Administrator Overview</h1>
+                <p class="section-subtitle">Platform configuration, identity, data sources and audit posture.</p>
+              </div>
+              <span class="badge ${health === 100 ? "badge-ok" : "badge-warn"}">
+                System health ${health}%
+              </span>
+            </div>
+
+            <div class="grid-4" style="margin-bottom: 20px;">
+              <div class="metric-card">
+                <div class="metric-label">Total Users</div>
+                <div class="metric-value mono-num">${s.users.length}</div>
+                <div class="metric-hint">${s.users.filter(u => u.status === 'active').length} active accounts</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Active Zones</div>
+                <div class="metric-value mono-num" style="color: var(--secondary);">${s.zones.filter(z => z.status === 'active').length}</div>
+                <div class="metric-hint">${s.zones.length} total configured</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Data Sources</div>
+                <div class="metric-value mono-num">${connected}/${s.sources.length}</div>
+                <div class="metric-hint">Connected live feeds</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Critical Alerts</div>
+                <div class="metric-value mono-num" style="color: var(--tertiary);">${s.alerts.filter(a => a.severity === 'Critical').length}</div>
+                <div class="metric-hint">Requiring intervention</div>
+              </div>
+            </div>
+
+            <div class="grid-3" style="grid-template-columns: 2fr 1fr; margin-bottom: 20px;">
+              <div class="panel">
+                <div class="panel-header">
+                  <h2>Security Zone Coverage Map</h2>
+                  <span class="badge badge-neutral">Bay of Bengal Grid</span>
+                </div>
+                <div class="panel-body no-padding" style="height: 380px;">
+                  <div id="admin-map" class="map-canvas"></div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="panel-header">
+                  <h2>Recent Audit Activity</h2>
+                  <a href="#audit" class="badge badge-neutral" onclick="window.renderTab('audit')">View All &rarr;</a>
+                </div>
+                <div class="panel-body" style="max-height: 380px; overflow-y: auto;">
+                  ${s.audit.slice(0, 7).map(l => `
+                    <div style="padding: 10px 0; border-bottom: 1px solid var(--border-color);">
+                      <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="badge ${l.status === 'success' ? 'badge-ok' : 'badge-critical'}">${l.module}</span>
+                        <span style="font-size:10px; color:var(--text-muted);">${window.MS_UI.timeAgo(l.ts)}</span>
+                      </div>
+                      <p style="font-size:12px; margin-top:4px; font-weight:500;">${l.action}</p>
+                      <span style="font-size:10px; color:var(--text-muted);">${l.user} · ${window.MS_UI.fmtTime(l.ts)}</span>
+                    </div>
+                  `).join("")}
+                </div>
+              </div>
+            </div>
+
+            <div class="grid-4" style="grid-template-columns: repeat(4, 1fr);">
+              ${s.sources.map(src => `
+                <div class="panel">
+                  <div class="panel-header">
+                    <h3>${src.kind}</h3>
+                    <span class="badge ${src.status === 'connected' ? 'badge-ok' : 'badge-warn'}">${src.status}</span>
+                  </div>
+                  <div class="panel-body">
+                    <p style="font-weight:700; font-size:13px;">${src.name}</p>
+                    <p style="font-size:11px; color:var(--text-muted); margin-top:6px;">Last sync ${window.MS_UI.timeAgo(src.lastSync)}</p>
+                    <div style="margin-top:12px;">
+                      <button class="btn btn-sm ${src.status === 'connected' ? 'btn-secondary' : 'btn-success'}" onclick="window.msStore.toggleSource('${src.id}'); renderTab('overview');">
+                        ${src.status === 'connected' ? 'Disconnect' : 'Connect'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          `;
+
+          setTimeout(() => {
+            window.MS_MAP.initMap("admin-map", { zoom: 6 });
+          }, 50);
+
+        } else if (tab === "users") {
+          container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">User & Role Management</h1>
+                <p class="section-subtitle">Manage operator accounts, assign access roles (Admin / Command / Field), enable/disable access, and track login activity.</p>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="document.getElementById('user-modal').classList.add('open');">+ Add User</button>
+            </div>
+
+            <div class="panel">
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Operator Name</th>
+                      <th>Username</th>
+                      <th>Assigned Role</th>
+                      <th>Region / Base</th>
+                      <th>Status</th>
+                      <th>Last Active</th>
+                      <th style="text-align:right;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${s.users.map(u => `
+                      <tr>
+                        <td><strong>${u.name}</strong></td>
+                        <td><span class="mono">${u.username}</span></td>
+                        <td>
+                          <span class="badge ${u.role === 'administrator' ? 'badge-primary' : u.role === 'command' ? 'badge-info' : 'badge-ok'}">
+                            ${u.role.toUpperCase()}
+                          </span>
+                        </td>
+                        <td>${u.region}</td>
+                        <td>
+                          <span class="badge ${u.status === 'active' ? 'badge-ok' : 'badge-neutral'}">
+                            ${u.status}
+                          </span>
+                        </td>
+                        <td><span style="font-size:11px; color:var(--text-muted);">${u.lastLogin ? window.MS_UI.timeAgo(u.lastLogin) : 'Active today'}</span></td>
+                        <td style="text-align:right;">
+                          <div style="display:inline-flex; gap:6px;">
+                            <button class="btn btn-secondary btn-sm" onclick="window.msStore.toggleUserStatus('${u.id}'); renderTab('users');">
+                              ${u.status === 'active' ? 'Disable' : 'Enable'}
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="if(confirm('Delete user ${u.name}?')) { window.msStore.deleteUser('${u.id}'); renderTab('users'); }">
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    `).join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        } else if (tab === "zones") {
+          container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Security Zone Management</h1>
+                <p class="section-subtitle">Configure maritime geofences in the Bay of Bengal (Normal, Monitoring, Restricted, High Risk, Critical) to trigger automated threat alerts.</p>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="document.getElementById('zone-modal').classList.add('open');">+ Create Security Zone</button>
+            </div>
+
+            <div class="grid-2">
+              ${s.zones.map(z => `
+                <div class="panel">
+                  <div class="panel-header">
+                    <h2>${z.name}</h2>
+                    <span class="badge ${window.MS_UI.getBadgeClass(z.classification)}">${z.classification}</span>
+                  </div>
+                  <div class="panel-body">
+                    <p style="font-size:12px; color:var(--text-muted);">${z.description}</p>
+                    <div style="margin-top:12px;">
+                      <div class="keyval-row"><span class="keyval-key">Coordinates</span><span class="keyval-val mono">${z.lat}°N, ${z.lng}°E</span></div>
+                      <div class="keyval-row"><span class="keyval-key">Perimeter Radius</span><span class="keyval-val">${z.radiusKm} km</span></div>
+                      <div class="keyval-row"><span class="keyval-key">Operational Status</span><span class="keyval-val badge ${z.status === 'active' ? 'badge-ok' : 'badge-neutral'}">${z.status}</span></div>
+                    </div>
+                    <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:8px;">
+                      <button class="btn btn-secondary btn-sm" onclick="window.msStore.toggleZoneStatus('${z.id}'); renderTab('zones');">
+                        ${z.status === 'active' ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button class="btn btn-danger btn-sm" onclick="if(confirm('Delete security zone ${z.name}?')) { window.msStore.deleteZone('${z.id}'); renderTab('zones'); }">
+                        Delete Zone
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          `;
+        } else if (tab === "sources") {
+          container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Data Source Control</h1>
+                <p class="section-subtitle">Connect and monitor live telemetry pipelines fusing AIS vessel tracking, coastal radar chains, satellite SAR tasking, and INCOIS weather.</p>
+              </div>
+            </div>
+
+            <div class="grid-2">
+              ${s.sources.map(src => `
+                <div class="panel">
+                  <div class="panel-header">
+                    <h2>${src.name}</h2>
+                    <span class="badge ${src.status === 'connected' ? 'badge-ok' : 'badge-warn'}">${src.status}</span>
+                  </div>
+                  <div class="panel-body">
+                    <div class="keyval-row"><span class="keyval-key">Source Type</span><span class="keyval-val">${src.kind}</span></div>
+                    <div class="keyval-row"><span class="keyval-key">Connection Status</span><span class="keyval-val" style="color: ${src.status === 'connected' ? 'var(--secondary)' : 'var(--status-warn)'}; font-weight:700;">${src.status.toUpperCase()}</span></div>
+                    <div class="keyval-row"><span class="keyval-key">Last Sync Ingestion</span><span class="keyval-val">${window.MS_UI.timeAgo(src.lastSync)}</span></div>
+                    <div style="margin-top:16px; text-align:right;">
+                      <button class="btn btn-sm ${src.status === 'connected' ? 'btn-secondary' : 'btn-success'}" onclick="window.msStore.toggleSource('${src.id}'); renderTab('sources');">
+                        ${src.status === 'connected' ? 'Disconnect Pipeline' : 'Connect Pipeline'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          `;
+        } else if (tab === "vessels") {
+          container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Tracked Maritime Traffic</h1>
+                <p class="section-subtitle">All vessels currently monitored in the Bay of Bengal surveillance picture.</p>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Vessel Name</th>
+                      <th>MMSI</th>
+                      <th>Flag / Type</th>
+                      <th>Speed / Course</th>
+                      <th>Threat Risk</th>
+                      <th>AIS Status</th>
+                      <th style="text-align:right;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${s.vessels.map(v => `
+                      <tr>
+                        <td><strong style="cursor:pointer; color:var(--primary);" onclick="window.openThreatDossier('${v.id}')">${v.name}</strong></td>
+                        <td><span class="mono">${v.mmsi}</span></td>
+                        <td>${v.flag} · ${v.type}</td>
+                        <td>${v.speed} kts · ${v.course}°</td>
+                        <td><span class="badge ${v.risk >= 80 ? 'badge-critical' : v.risk >= 60 ? 'badge-danger' : v.risk >= 40 ? 'badge-warn' : 'badge-ok'}">${v.risk}/100</span></td>
+                        <td><span class="badge ${v.ais === 'active' ? 'badge-ok' : v.ais === 'lost' ? 'badge-critical' : 'badge-warn'}">${v.ais}</span></td>
+                        <td style="text-align:right;">
+                          <button class="btn btn-secondary btn-sm" onclick="window.openThreatDossier('${v.id}')">Inspect Profile</button>
+                        </td>
+                      </tr>
+                    `).join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        } else if (tab === "rules") {
+          container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Threat Rule Setup (AI Logic Engine)</h1>
+                <p class="section-subtitle">Transparent rule-based scoring engine evaluating vessel behavior (restricted zone entry, AIS transponder blackout, sudden speed changes).</p>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="document.getElementById('rule-modal').classList.add('open');">+ Add Threat Rule</button>
+            </div>
+
+            <div class="panel">
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Rule ID</th>
+                      <th>Rule Name</th>
+                      <th>Behavior / Logic Trigger</th>
+                      <th>Risk Penalty</th>
+                      <th>Status</th>
+                      <th style="text-align:right;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${s.threatRules.map(r => `
+                      <tr>
+                        <td><span class="mono"><strong>${r.id}</strong></span></td>
+                        <td><strong>${r.name}</strong></td>
+                        <td>${r.description}</td>
+                        <td><span class="badge badge-primary">+${r.weight} pts</span></td>
+                        <td><span class="badge ${r.status === 'active' ? 'badge-ok' : 'badge-neutral'}">${r.status}</span></td>
+                        <td style="text-align:right;">
+                          <div style="display:inline-flex; gap:6px;">
+                            <button class="btn btn-secondary btn-sm" onclick="window.msStore.toggleRuleStatus('${r.id}'); renderTab('rules');">
+                              ${r.status === 'active' ? 'Disable' : 'Enable'}
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="const nw = prompt('Enter new risk weight for ${r.name}:', '${r.weight}'); if(nw && !isNaN(nw)) { window.msStore.updateRuleWeight('${r.id}', nw); renderTab('rules'); }">
+                              Adjust Weight
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    `).join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        } else if (tab === "audit") {
+          const filteredAudit = auditFilter
+            ? s.audit.filter(l => l.module.toLowerCase().includes(auditFilter.toLowerCase()) || l.user.toLowerCase().includes(auditFilter.toLowerCase()) || l.action.toLowerCase().includes(auditFilter.toLowerCase()))
+            : s.audit;
+
+          container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Security & System Audit Logs</h1>
+                <p class="section-subtitle">Immutable accountability trail tracking every operator action: who did what, when, from which module, and the outcome.</p>
+              </div>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <input type="text" class="input-field" placeholder="Filter by module or user..." value="${auditFilter}" oninput="window.updateAuditFilter(this.value)" style="width:220px; font-size:12px;" />
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Timestamp</th>
+                      <th>Module</th>
+                      <th>Operator</th>
+                      <th>Action Executed</th>
+                      <th>Outcome</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${filteredAudit.map(l => `
+                      <tr>
+                        <td><span class="mono">${window.MS_UI.fmtTime(l.ts)}</span></td>
+                        <td><span class="badge badge-neutral">${l.module}</span></td>
+                        <td><strong>${l.user}</strong></td>
+                        <td>${l.action}</td>
+                        <td><span class="badge ${l.status === 'success' ? 'badge-ok' : 'badge-critical'}">${l.status}</span></td>
+                      </tr>
+                    `).join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        } else if (tab === "profile") {
+          container.innerHTML = window.MS_UI.getProfileHtml("administrator");
+        }
+      }
+      window.renderTab = renderTab;
+
+      window.updateAuditFilter = function(val) {
+        auditFilter = val;
+        renderTab("audit");
+      };
+
+      // Add user form handler
+      document.getElementById("user-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const name = document.getElementById("new-user-name").value;
+        const username = document.getElementById("new-user-username").value;
+        const role = document.getElementById("new-user-role").value;
+        const region = document.getElementById("new-user-region").value;
+        window.msStore.addUser(name, username, role, region);
+        document.getElementById("user-modal").classList.remove("open");
+        document.getElementById("user-form").reset();
+        renderTab("users");
+      });
+
+      // Add zone form handler
+      document.getElementById("zone-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const name = document.getElementById("new-zone-name").value;
+        const classification = document.getElementById("new-zone-class").value;
+        const lat = document.getElementById("new-zone-lat").value;
+        const lng = document.getElementById("new-zone-lng").value;
+        const radius = document.getElementById("new-zone-radius").value;
+        window.msStore.addZone(name, classification, lat, lng, radius);
+        document.getElementById("zone-modal").classList.remove("open");
+        document.getElementById("zone-form").reset();
+        renderTab("zones");
+      });
+
+      // Add threat rule form handler
+      document.getElementById("rule-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const name = document.getElementById("new-rule-name").value;
+        const desc = document.getElementById("new-rule-desc").value;
+        const weight = document.getElementById("new-rule-weight").value;
+        window.msStore.addThreatRule(name, desc, weight);
+        document.getElementById("rule-modal").classList.remove("open");
+        document.getElementById("rule-form").reset();
+        renderTab("rules");
+      });
+
+      window.MS_UI.attachLayoutEvents(renderTab);
+      renderTab("overview");
+    });
+  </script>
+  </script>
+</body>
+</html>

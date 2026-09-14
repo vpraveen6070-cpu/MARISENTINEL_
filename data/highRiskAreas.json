@@ -1,0 +1,47 @@
+[
+  {
+    "id": "HRA-01",
+    "name": "Swatch of No Ground IMBL Shoals",
+    "lat": 21.05,
+    "lng": 89.20,
+    "radiusKm": 45,
+    "threatLevel": "Critical",
+    "description": "Transboundary international maritime boundary line (IMBL) with cross-border infiltration and contraband trafficking risk."
+  },
+  {
+    "id": "HRA-02",
+    "name": "Andaman Sea Transshipment Sector",
+    "lat": 10.80,
+    "lng": 93.60,
+    "radiusKm": 50,
+    "threatLevel": "High",
+    "description": "Deepwater maritime sector known for unmonitored night rendezvous and unauthorized cargo transshipment."
+  },
+  {
+    "id": "HRA-03",
+    "name": "Kakinada Deepwater KG-Basin Asset Cluster",
+    "lat": 16.65,
+    "lng": 82.65,
+    "radiusKm": 38,
+    "threatLevel": "High",
+    "description": "Critical national offshore natural gas extraction platforms and subsea pipeline network."
+  },
+  {
+    "id": "HRA-04",
+    "name": "Gopalpur Integrated Missile Hazard Sector",
+    "lat": 19.10,
+    "lng": 85.15,
+    "radiusKm": 35,
+    "threatLevel": "Critical",
+    "description": "Integrated Test Range surface-to-air missile testing trajectory zone."
+  },
+  {
+    "id": "HRA-05",
+    "name": "Palk Strait & Northern Gulf Chokepoint",
+    "lat": 9.60,
+    "lng": 79.75,
+    "radiusKm": 30,
+    "threatLevel": "High",
+    "description": "Shallow water maritime corridor vulnerable to dark craft smuggling and unauthorized coastal landing."
+  }
+]

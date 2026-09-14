@@ -1,0 +1,56 @@
+[
+  {
+    "id": "usr-admin-1",
+    "username": "admin",
+    "password": "admin123",
+    "name": "Dr. Arvind Rao",
+    "role": "administrator",
+    "status": "active",
+    "region": "Visakhapatnam HQ"
+  },
+  {
+    "id": "usr-cmd-1",
+    "username": "command",
+    "password": "command123",
+    "name": "Cdr. Rajesh Menon",
+    "role": "command",
+    "status": "active",
+    "region": "Eastern Naval Command"
+  },
+  {
+    "id": "usr-field-1",
+    "username": "field",
+    "password": "field123",
+    "name": "Lt. Manoj Barua",
+    "role": "field",
+    "status": "active",
+    "region": "Visakhapatnam Squadron",
+    "availability": "on-mission",
+    "lat": 17.68,
+    "lng": 83.38
+  },
+  {
+    "id": "usr-field-2",
+    "username": "kdas",
+    "password": "field123",
+    "name": "Officer K. Das",
+    "role": "field",
+    "status": "active",
+    "region": "Paradip Station",
+    "availability": "on-mission",
+    "lat": 20.25,
+    "lng": 86.70
+  },
+  {
+    "id": "usr-field-3",
+    "username": "sneha",
+    "password": "field123",
+    "name": "Lt. Sneha Roy",
+    "role": "field",
+    "status": "active",
+    "region": "Chennai Base",
+    "availability": "available",
+    "lat": 13.10,
+    "lng": 80.30
+  }
+]

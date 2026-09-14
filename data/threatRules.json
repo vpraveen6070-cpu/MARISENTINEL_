@@ -1,0 +1,51 @@
+[
+  {
+    "id": "TR-01",
+    "name": "Restricted Zone Entry",
+    "weight": 25,
+    "description": "Vessel entered an active security zone or restricted perimeter",
+    "status": "active"
+  },
+  {
+    "id": "TR-02",
+    "name": "AIS Signal Blackout",
+    "weight": 20,
+    "description": "AIS transponder disabled or signal lost in monitored waters",
+    "status": "active"
+  },
+  {
+    "id": "TR-03",
+    "name": "Sudden Speed Variation",
+    "weight": 15,
+    "description": "Speed variation delta exceeding 30 kts",
+    "status": "active"
+  },
+  {
+    "id": "TR-04",
+    "name": "High-Risk Area Proximity",
+    "weight": 10,
+    "description": "Proximity to designated high-risk maritime sector",
+    "status": "active"
+  },
+  {
+    "id": "TR-05",
+    "name": "Prolonged Loitering Detected",
+    "weight": 10,
+    "description": "Prolonged loitering detected in operational grid",
+    "status": "active"
+  },
+  {
+    "id": "TR-06",
+    "name": "Course Deviation",
+    "weight": 10,
+    "description": "Course deviation from designated shipping lane",
+    "status": "active"
+  },
+  {
+    "id": "TR-07",
+    "name": "Low Speed Detected",
+    "weight": 5,
+    "description": "Low vessel speed (<5 kts) detected in monitored sector",
+    "status": "active"
+  }
+]

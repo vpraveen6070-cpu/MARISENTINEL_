@@ -1,0 +1,30 @@
+[
+  {
+    "id": "SRC-01",
+    "name": "National Coastal AIS Network (DGLL)",
+    "kind": "AIS Feed",
+    "status": "connected",
+    "lastSync": "2026-09-14T14:02:52.559Z"
+  },
+  {
+    "id": "SRC-02",
+    "name": "Chain of Static Coastal Radars (CSCR Phase II)",
+    "kind": "Radar Feed",
+    "status": "connected",
+    "lastSync": "2026-09-14T14:02:52.559Z"
+  },
+  {
+    "id": "SRC-03",
+    "name": "Sentinel-2 SAR / RISAT Tasking Pipeline",
+    "kind": "Satellite Imagery",
+    "status": "connected",
+    "lastSync": "2026-09-14T14:02:52.559Z"
+  },
+  {
+    "id": "SRC-04",
+    "name": "INCOIS High-Resolution Marine Hydrography",
+    "kind": "Weather Telemetry",
+    "status": "connected",
+    "lastSync": "2026-09-14T14:02:52.559Z"
+  }
+]
