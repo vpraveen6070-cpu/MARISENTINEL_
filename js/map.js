@@ -672,26 +672,24 @@ window.MS_MAP = (function () {
     const relatedInc = (s.incidents || []).find((inc) => inc.vesselId === v.id || inc.vesselId === v.vesselId || inc.vesselName === v.name);
 
     let effectiveRisk = Math.max(v.riskScore ?? v.risk ?? 0, freshEval.score);
-    let effectiveBehaviours = Array.from(new Set([
-      ...(Array.isArray(v.behaviours) ? v.behaviours : []),
-      ...(Array.isArray(v.reasons) ? v.reasons : []),
-      ...(freshEval.reasons || [])
-    ]));
-    let effectiveThreatType = classifyThreat(v, effectiveRisk);
-
-    if (relatedAlert) {
-      if (relatedAlert.risk > effectiveRisk) effectiveRisk = relatedAlert.risk;
-      if (relatedAlert.behaviours && relatedAlert.behaviours.length) {
-        effectiveBehaviours = Array.from(new Set([...effectiveBehaviours, ...relatedAlert.behaviours]));
-      }
-      if (relatedAlert.threatType && (effectiveThreatType === "Normal" || !effectiveThreatType)) {
-        effectiveThreatType = relatedAlert.threatType;
-      }
+    if (relatedAlert && relatedAlert.risk > effectiveRisk) {
+      effectiveRisk = relatedAlert.risk;
     }
-
     if (relatedInc && relatedInc.risk > effectiveRisk) {
       effectiveRisk = relatedInc.risk;
     }
+
+    const cleanReason = (r) => (typeof r === "string" ? r.replace(/\s*\(\+\d+\s*pts\)/gi, "").trim() : "");
+    let rawList = [
+      ...(Array.isArray(v.behaviours) ? v.behaviours : []),
+      ...(Array.isArray(v.reasons) ? v.reasons : []),
+      ...(freshEval.reasons || [])
+    ];
+    if (relatedAlert && relatedAlert.behaviours && relatedAlert.behaviours.length) {
+      rawList.push(...relatedAlert.behaviours);
+    }
+    const effectiveBehaviours = Array.from(new Set(rawList.map(cleanReason).filter(Boolean)));
+    let effectiveThreatType = (relatedAlert && relatedAlert.threatType) || classifyThreat(v, effectiveRisk);
 
     const isCritical = effectiveRisk >= 80;
     const isHigh = effectiveRisk >= 60 && effectiveRisk < 80;
