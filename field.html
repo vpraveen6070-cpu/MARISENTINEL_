@@ -209,64 +209,101 @@
             </div>
 
             <div class="grid-2">
-              ${(myIncidents.length ? myIncidents : allActive).map(inc => {
-                const distKm = calcDistance(meLat, meLng, inc.lat, inc.lng);
-                return `
-                <div class="panel">
-                  <div class="panel-header">
-                    <h2>${inc.id} · ${inc.category}</h2>
-                    <span class="badge ${window.MS_UI.getBadgeClass(inc.status)}">${inc.status}</span>
-                  </div>
-                  <div class="panel-body">
-                    <strong style="font-size:14px; color:var(--primary);">${inc.title}</strong>
-                    <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">${inc.description}</p>
-                    
-                    <div style="margin-top:12px;">
-                      <div class="keyval-row"><span class="keyval-key">Target Vessel</span><span class="keyval-val">${inc.vesselName}</span></div>
-                      <div class="keyval-row"><span class="keyval-key">Threat Score</span><span class="keyval-val" style="color:var(--tertiary); font-weight:700;">${inc.risk}/100 (${inc.riskLevel})</span></div>
-                      <div class="keyval-row"><span class="keyval-key">Current Stage</span><span class="keyval-val badge badge-primary">${inc.missionStatus || 'Assigned'}</span></div>
-                      <div class="keyval-row"><span class="keyval-key">Target Bearing</span><span class="keyval-val mono">${inc.lat}°N, ${inc.lng}°E (${distKm} km away)</span></div>
+              ${(() => {
+                const STAGES = ['Assigned', 'Accepted', 'En Route', 'Target Located', 'Request Interception', 'Action Executed', 'Submitted'];
+                return (myIncidents.length ? myIncidents : allActive).map(inc => {
+                  const distKm = calcDistance(meLat, meLng, inc.lat, inc.lng);
+                  const currentStageStr = inc.missionStatus || 'Assigned';
+                  let currentIdx = STAGES.indexOf(currentStageStr);
+                  if (currentIdx === -1) {
+                    if (currentStageStr === 'In Progress') currentIdx = 1;
+                    else currentIdx = 0;
+                  }
+                  return `
+                  <div class="panel">
+                    <div class="panel-header">
+                      <h2>${inc.id} · ${inc.category}</h2>
+                      <span class="badge ${window.MS_UI.getBadgeClass(inc.status)}">${inc.status}</span>
                     </div>
-
-                    <!-- Acceptance & Rejection Actions if new -->
-                    <div style="margin-top:14px; padding:10px; background:var(--bg-card-subtle); border-radius:var(--radius-md); border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
-                      <span style="font-size:12px; font-weight:600;">Assignment Action:</span>
-                      <div style="display:flex; gap:6px;">
-                        <button class="btn btn-success btn-sm" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Accepted', 'Officer accepted mission dispatch.'); renderTab('missions');">
-                          ✓ Accept Mission
-                        </button>
-                        <button class="btn btn-danger btn-sm" onclick="const r = prompt('Decline reason:','Outside operational range'); if(r){ window.msStore.rejectIncident('${inc.id}', r); renderTab('missions'); }">
-                          ✕ Decline
-                        </button>
+                    <div class="panel-body">
+                      <strong style="font-size:14px; color:var(--primary);">${inc.title}</strong>
+                      <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">${inc.description}</p>
+                      
+                      <div style="margin-top:12px;">
+                        <div class="keyval-row"><span class="keyval-key">Target Vessel</span><span class="keyval-val">${inc.vesselName}</span></div>
+                        <div class="keyval-row"><span class="keyval-key">Threat Score</span><span class="keyval-val" style="color:var(--tertiary); font-weight:700;">${inc.risk}/100 (${inc.riskLevel})</span></div>
+                        <div class="keyval-row"><span class="keyval-key">Current Stage</span><span class="keyval-val badge badge-primary">${inc.missionStatus || 'Assigned'}</span></div>
+                        <div class="keyval-row"><span class="keyval-key">Target Bearing</span><span class="keyval-val mono">${inc.lat}°N, ${inc.lng}°E (${distKm} km away)</span></div>
                       </div>
-                    </div>
 
-                    <!-- 6-Stage Tactical Status Workflow -->
-                    <div style="margin-top:16px;">
-                      <label class="form-label" style="font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">
-                        Tactical Execution Stages:
-                      </label>
-                      <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px;">
-                        <button class="btn btn-secondary btn-sm ${inc.missionStatus === 'Accepted' ? 'btn-outlined' : ''}" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Accepted', 'Officer acknowledged mission orders.'); renderTab('missions');">
-                          1. Accept Mission
-                        </button>
-                        <button class="btn btn-secondary btn-sm ${inc.missionStatus === 'En Route' ? 'btn-outlined' : ''}" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'En Route', 'Fast Interceptor Craft IC-114 underway to target.'); window.msStore.simulateOfficerMovement('${me.id}', '${inc.id}'); renderTab('missions');">
-                          2. En Route
-                        </button>
-                        <button class="btn btn-secondary btn-sm ${inc.missionStatus === 'Target Located' ? 'btn-outlined' : ''}" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Target Located', 'Visual contact established with vessel. Closing to 50m for observation.'); renderTab('missions');">
-                          3. Target Located
-                        </button>
-                        <button class="btn btn-secondary btn-sm ${inc.missionStatus === 'Request Interception' ? 'btn-outlined' : ''}" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Request Interception', 'Suspicious activity observed. Requesting Command authorization for tactical boarding & search.'); renderTab('missions');">
-                          4. Request Interception
-                        </button>
-                        <button class="btn btn-secondary btn-sm ${inc.missionStatus === 'Action Executed' ? 'btn-outlined' : ''}" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Action Executed', 'Authorized action completed: Vessel boarded, master interviewed, and cargo manifest verified.'); renderTab('missions');">
-                          5. Action Executed
-                        </button>
-                        <button class="btn btn-primary btn-sm" onclick="renderTab('reports');">
-                          6. Submit Final Report &rarr;
-                        </button>
+                      <!-- Acceptance & Rejection Actions only if pending acceptance -->
+                      ${currentIdx === 0 ? `
+                      <div style="margin-top:14px; padding:10px; background:var(--bg-card-subtle); border-radius:var(--radius-md); border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:12px; font-weight:600;">Assignment Action:</span>
+                        <div style="display:flex; gap:6px;">
+                          <button class="btn btn-success btn-sm" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Accepted', 'Officer accepted mission dispatch.'); renderTab('missions');">
+                            ✓ Accept Mission
+                          </button>
+                          <button class="btn btn-danger btn-sm" onclick="const r = prompt('Decline reason:','Outside operational range'); if(r){ window.msStore.rejectIncident('${inc.id}', r); renderTab('missions'); }">
+                            ✕ Decline
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                      ` : ''}
+
+                      <!-- 6-Stage Tactical Status Workflow -->
+                      <div style="margin-top:16px;">
+                        <label class="form-label" style="font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">
+                          Tactical Execution Stages:
+                        </label>
+                        <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+                          ${currentIdx >= 1 ? `
+                            <span class="badge badge-ok" style="font-size:11px; padding:5px 9px;">✓ 1. Accepted</span>
+                          ` : `
+                            <button class="btn btn-primary btn-sm" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Accepted', 'Officer acknowledged mission orders.'); renderTab('missions');">
+                              1. Accept Mission
+                            </button>
+                          `}
+
+                          ${currentIdx >= 2 ? `
+                            <span class="badge badge-ok" style="font-size:11px; padding:5px 9px;">✓ 2. En Route</span>
+                          ` : currentIdx >= 1 ? `
+                            <button class="btn btn-primary btn-sm" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'En Route', 'Fast Interceptor Craft IC-114 underway to target.'); window.msStore.simulateOfficerMovement('${me.id}', '${inc.id}'); renderTab('missions');">
+                              2. En Route
+                            </button>
+                          ` : ''}
+
+                          ${currentIdx >= 3 ? `
+                            <span class="badge badge-ok" style="font-size:11px; padding:5px 9px;">✓ 3. Target Located</span>
+                          ` : currentIdx >= 2 ? `
+                            <button class="btn btn-primary btn-sm" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Target Located', 'Visual contact established with vessel. Closing to 50m for observation.'); renderTab('missions');">
+                              3. Target Located
+                            </button>
+                          ` : ''}
+
+                          ${currentIdx >= 4 ? `
+                            <span class="badge badge-ok" style="font-size:11px; padding:5px 9px;">✓ 4. Request Interception</span>
+                          ` : currentIdx >= 3 ? `
+                            <button class="btn btn-primary btn-sm" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Request Interception', 'Suspicious activity observed. Requesting Command authorization for tactical boarding & search.'); renderTab('missions');">
+                              4. Request Interception
+                            </button>
+                          ` : ''}
+
+                          ${currentIdx >= 5 ? `
+                            <span class="badge badge-ok" style="font-size:11px; padding:5px 9px;">✓ 5. Action Executed</span>
+                          ` : currentIdx >= 4 ? `
+                            <button class="btn btn-primary btn-sm" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Action Executed', 'Authorized action completed: Vessel boarded, master interviewed, and cargo manifest verified.'); renderTab('missions');">
+                              5. Action Executed
+                            </button>
+                          ` : ''}
+
+                          ${currentIdx >= 5 ? `
+                            <button class="btn btn-primary btn-sm" onclick="renderTab('reports');">
+                              6. Submit Final Report &rarr;
+                            </button>
+                          ` : ''}
+                        </div>
+                      </div>
 
                     <!-- Quick Field Note Log Form -->
                     <div style="margin-top:16px;">
@@ -297,7 +334,8 @@
                   </div>
                 </div>
                 `;
-              }).join("")}
+              }).join("");
+            })()}
             </div>
           `;
         } else if (tab === "map") {
