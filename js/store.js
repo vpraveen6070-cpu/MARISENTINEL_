@@ -32,16 +32,16 @@
 
   function isPointInMaritimeArea(lat, lng) {
     if (typeof lat !== "number" || typeof lng !== "number" || isNaN(lat) || isNaN(lng)) return false;
-    if (lat < 8.0 || lat > 21.9) return false;
-    const minLng = getWestCoastMinLng(lat);
-    const maxLng = getEastCoastMaxLng(lat);
+    if (lat < 7.5 || lat > 22.5) return false;
+    const minLng = getWestCoastMinLng(lat) - 0.2;
+    const maxLng = getEastCoastMaxLng(lat) + 0.2;
     return lng >= minLng && lng <= maxLng;
   }
 
   function clampToMaritime(lat, lng) {
-    let safeLat = Math.min(21.75, Math.max(9.0, lat || 17.5));
-    const minLng = getWestCoastMinLng(safeLat) + 0.12; // safe offshore buffer
-    const maxLng = getEastCoastMaxLng(safeLat) - 0.12;
+    let safeLat = Math.min(22.0, Math.max(8.0, lat || 17.5));
+    const minLng = getWestCoastMinLng(safeLat);
+    const maxLng = getEastCoastMaxLng(safeLat);
     let safeLng = Math.min(maxLng, Math.max(minLng, lng || 84.5));
     return [Math.round(safeLat * 1000) / 1000, Math.round(safeLng * 1000) / 1000];
   }
