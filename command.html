@@ -360,44 +360,91 @@
                       <th>Severity</th>
                       <th>Vessel Name</th>
                       <th>Threat Classification</th>
-                      <th>Zone</th>
+                      <th>Zone &amp; Location</th>
                       <th>Risk Score</th>
+                      <th>Rule Violations Detected</th>
                       <th>Status</th>
                       <th style="text-align:right;">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     ${(() => {
-                      const alertList = (s.alerts && s.alerts.length) ? s.alerts : s.vessels.map(v => {
-                        const calcRisk = window.calculateRisk || (() => ({ score: 0, reasons: [] }));
+                      const calcRisk = window.calculateRisk || (() => ({ score: 0, reasons: [] }));
+                      const classifyThreat = window.classifyThreat || (() => "Elevated Threat");
+                      const cleanReason = (r) => (typeof r === "string" ? r.replace(/\s*\(\+\d+\s*pts\)/gi, "").trim() : "");
+                      
+                      const mapVessels = s.vessels || [];
+                      const rawAlerts = s.alerts || [];
+
+                      let combinedAlerts = rawAlerts.map(a => {
+                        const v = mapVessels.find(x => x.id === a.vesselId || x.vesselId === a.vesselId || x.name === a.vesselName) || {};
+                        const fresh = v.id ? calcRisk(v, s.threatRules) : { score: 0, reasons: [] };
+                        const score = Math.max(a.risk || 0, v.riskScore ?? v.risk ?? 0, fresh.score);
+                        const threatType = a.threatType || (v.id ? classifyThreat(v, score) : "Elevated Threat");
+                        const severity = score >= 80 ? "Critical" : score >= 60 ? "High" : "Medium";
+                        const rawBehaviors = [...(a.behaviours || []), ...(v.behaviours || []), ...(v.reasons || []), ...(fresh.reasons || [])];
+                        const behaviours = Array.from(new Set(rawBehaviors.map(cleanReason).filter(Boolean)));
+                        const lat = v.lat ?? a.lat ?? 15.0;
+                        const lng = v.lng ?? a.lng ?? 85.0;
+                        const zoneName = a.zoneName || (v.name ? `${v.destination || 'Bay of Bengal'} (${lat}°N, ${lng}°E)` : "Surveillance Grid");
+
+                        return {
+                          ...a,
+                          vesselId: v.id || v.vesselId || a.vesselId,
+                          vesselName: v.name || a.vesselName,
+                          vesselType: v.type || "Vessel",
+                          lat,
+                          lng,
+                          zoneName,
+                          risk: score,
+                          severity,
+                          threatType,
+                          behaviours
+                        };
+                      });
+
+                      mapVessels.forEach(v => {
                         const fresh = calcRisk(v, s.threatRules);
                         const score = Math.max(v.riskScore ?? v.risk ?? 0, fresh.score);
-                        if (score < 35) return null;
-                        const classifyThreat = window.classifyThreat || (() => "Elevated Threat");
-                        return {
-                          id: "AL-" + (v.id || v.vesselId),
-                          ts: v.lastUpdate || new Date().toISOString(),
-                          vesselId: v.id || v.vesselId,
-                          vesselName: v.name,
-                          threatType: v.threatType || classifyThreat(v, score),
-                          severity: score >= 80 ? "Critical" : score >= 60 ? "High" : "Medium",
-                          risk: score,
-                          zoneName: v.destination || "Bay of Bengal Corridor",
-                          status: "New"
-                        };
-                      }).filter(Boolean);
+                        if (score >= 35) {
+                          const exists = combinedAlerts.some(a => a.vesselId === v.id || a.vesselId === v.vesselId || a.vesselName === v.name);
+                          if (!exists) {
+                            const threatType = classifyThreat(v, score);
+                            const severity = score >= 80 ? "Critical" : score >= 60 ? "High" : "Medium";
+                            const behaviours = Array.from(new Set([...(v.behaviours || []), ...(v.reasons || []), ...(fresh.reasons || [])].map(cleanReason).filter(Boolean)));
+                            combinedAlerts.push({
+                              id: "AL-" + (v.id || v.vesselId),
+                              ts: v.lastUpdate || new Date().toISOString(),
+                              vesselId: v.id || v.vesselId,
+                              vesselName: v.name,
+                              vesselType: v.type,
+                              lat: v.lat,
+                              lng: v.lng,
+                              zoneName: `${v.destination || 'Bay of Bengal Sector'} (${v.lat}°N, ${v.lng}°E)`,
+                              threatType,
+                              severity,
+                              risk: score,
+                              status: "New",
+                              behaviours
+                            });
+                          }
+                        }
+                      });
 
-                      return alertList.sort((a, b) => (b.risk || 0) - (a.risk || 0)).map(a => {
+                      return combinedAlerts.sort((a, b) => (b.risk || 0) - (a.risk || 0)).map(a => {
                         const isAssigned = a.status === 'Assigned' && a.assignedTo && s.users.some(u => u.id === a.assignedTo && u.status === 'active');
                         const displayStatus = isAssigned ? 'Assigned' : (a.status === 'Assigned' ? 'New' : a.status || 'New');
                         return `
                         <tr>
                           <td><span class="mono">${window.MS_UI.fmtTime(a.ts)}</span></td>
                           <td><span class="badge ${a.severity === 'Critical' ? 'badge-critical' : a.severity === 'High' ? 'badge-danger' : 'badge-warn'}">${a.severity}</span></td>
-                          <td><strong style="cursor:pointer; color:var(--primary);" onclick="window.openThreatDossier('${a.vesselId}')">${a.vesselName}</strong></td>
+                          <td><strong style="cursor:pointer; color:var(--primary);" onclick="window.openThreatDossier('${a.vesselId}')">${a.vesselName}</strong><br><span class="mono" style="font-size:10px; color:var(--text-muted);">${a.vesselType || ''}</span></td>
                           <td>${a.threatType}</td>
                           <td>${a.zoneName}</td>
                           <td><strong style="color:${a.risk >= 80 ? 'var(--tertiary)' : a.risk >= 60 ? 'var(--status-danger)' : 'var(--status-warn)'};">${a.risk}/100</strong></td>
+                          <td>
+                            ${a.behaviours && a.behaviours.length ? a.behaviours.map(b => `<span class="badge badge-danger" style="margin-right:4px; margin-bottom:2px; display:inline-block;">${b}</span>`).join("") : `<span class="badge badge-warn">Elevated Risk</span>`}
+                          </td>
                           <td><span class="badge ${displayStatus === 'New' ? 'badge-danger' : displayStatus === 'Assigned' ? 'badge-primary' : 'badge-neutral'}">${displayStatus.toUpperCase()}</span></td>
                           <td style="text-align:right;">
                             <button class="btn btn-secondary btn-sm" onclick="window.openThreatDossier('${a.vesselId}')">Dossier</button>
@@ -434,11 +481,11 @@
                   <thead>
                     <tr>
                       <th>Vessel Name</th>
-                      <th>Flag & Type</th>
+                      <th>Flag &amp; Type</th>
                       <th>Speed / Heading</th>
                       <th>Coordinates</th>
                       <th>Threat Risk</th>
-                      <th>Behaviours Detected</th>
+                      <th>Rule Violations Detected</th>
                       <th style="text-align:right;">Actions</th>
                     </tr>
                   </thead>
@@ -464,7 +511,7 @@
                           <td><span class="mono">${v.lat}°N, ${v.lng}°E</span></td>
                           <td><span class="badge ${score >= 80 ? 'badge-critical' : score >= 60 ? 'badge-danger' : score >= 40 ? 'badge-warn' : 'badge-ok'}">${score}/100</span></td>
                           <td>
-                            ${reasons.length ? reasons.map(b => `<span class="badge badge-danger" style="margin-right:4px;">${b}</span>`).join("") : `<span class="badge badge-ok">Nominal</span>`}
+                            ${reasons.length ? reasons.map(b => `<span class="badge badge-danger" style="margin-right:4px; margin-bottom:2px; display:inline-block;">${b}</span>`).join("") : `<span class="badge badge-ok">Nominal</span>`}
                           </td>
                           <td style="text-align:right;">
                             <button class="btn btn-primary btn-sm" onclick="window.openThreatDossier('${v.id}')">Threat Profile</button>
