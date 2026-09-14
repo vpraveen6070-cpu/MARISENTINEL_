@@ -115,30 +115,9 @@ window.MS_UI = (function () {
   }
 
   /* ---------------- Tactical Audio Synthesizer ---------------- */
-  let audioCtx = null;
   function playNotificationChime(severity = "info") {
-    try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return;
-      if (!audioCtx) audioCtx = new AudioContext();
-      if (audioCtx.state === "suspended") {
-        audioCtx.resume();
-      }
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = "sine";
-      const freq = severity === "critical" ? 880 : severity === "high" ? 660 : 523.25;
-      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(freq * 1.4, audioCtx.currentTime + 0.12);
-      gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.28);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.3);
-    } catch (e) {
-      // Audio autostart policy or unsupported, silent fallback
-    }
+    // Silent mode - Audio playback disabled per user preference
+    return;
   }
 
   /* ---------------- Notification Dropdown Renderer ---------------- */

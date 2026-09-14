@@ -577,10 +577,7 @@
         notifications: [newNotif, ...(s.notifications || [])].slice(0, 40)
       }));
 
-      // Trigger audio chime if UI exists
-      if (window.MS_UI && window.MS_UI.playNotificationChime) {
-        window.MS_UI.playNotificationChime(severity);
-      }
+      // Audio chime disabled per user preference
     }
 
     markNotificationRead(notifId) {
