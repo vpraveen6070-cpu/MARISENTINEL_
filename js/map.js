@@ -421,9 +421,6 @@ window.MS_MAP = (function () {
                 <button class="btn btn-primary btn-sm" style="flex:1;" onclick="window.openThreatDossier('${v.vesselId || v.id}')">
                   Threat Dossier
                 </button>
-                <button class="btn btn-secondary btn-sm" style="padding:4px 8px;" title="Transmit AIS Warning Hail" onclick="window.msStore.sendAisHail('${v.vesselId || v.id}')">
-                  📡 Hail
-                </button>
                 ${
                   isCritical
                     ? `
