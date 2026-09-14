@@ -4,7 +4,7 @@
  */
 
 (function () {
-  const STORAGE_KEY = "marisentinel_state_v10"; // Bumped version for 7-rule threat engine synchronization
+  const STORAGE_KEY = "marisentinel_state_v11"; // Calibrated threat alert intensity (4-5 critical threats daily max)
 
   /* ---------------- Maritime Geofencing Engine ---------------- */
   function getWestCoastMinLng(lat) {
@@ -1098,8 +1098,12 @@
           const threatType = classifyThreat(candidate, score);
           const level = score > 70 ? "HIGH" : score > 30 ? "MEDIUM" : "LOW";
 
-          // Alert generation for high threat vessels
-          if (score > 70 && Math.random() > 0.94) {
+          // Alert generation for high threat vessels (throttled to 4-5 critical threats max daily)
+          const existingForVessel = (s.alerts || []).some(a => (a.vesselId === (v.vesselId || v.id) || a.vesselName === v.name) && a.status === "New");
+          const criticalCount = (s.alerts || []).filter(a => a.severity === "Critical" && a.status !== "Resolved" && a.status !== "False Alarm").length;
+
+          if (score >= 75 && !existingForVessel && Math.random() > 0.995) {
+            const isCritical = score >= 80 && criticalCount < 5;
             newAlerts.push({
               id: "AL-" + Math.floor(Math.random() * 9000 + 1000),
               ts: new Date().toISOString(),
@@ -1107,7 +1111,7 @@
               vesselName: v.name,
               threatType: threatType !== "Normal" ? threatType : "Restricted Zone Intrusion",
               risk: score,
-              severity: score > 80 ? "Critical" : "High",
+              severity: isCritical ? "Critical" : "High",
               zoneName: activeZoneName,
               status: "New",
               lat: Math.round(nextLat * 1000) / 1000,
@@ -1160,7 +1164,7 @@
           });
         }
 
-        const alerts = newAlerts.length ? [...newAlerts, ...(s.alerts || [])].slice(0, 50) : s.alerts;
+        const alerts = newAlerts.length ? [...newAlerts, ...(s.alerts || [])].slice(0, 10) : s.alerts;
 
         return {
           ...s,
