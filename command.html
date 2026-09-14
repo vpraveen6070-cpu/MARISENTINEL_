@@ -711,11 +711,9 @@
         renderTab("incidents");
       });
 
-      window.msStore.subscribe(() => {
-        const modalOpen = document.querySelector(".modal-backdrop.open");
-        if (!modalOpen && (currentTab === "alerts" || currentTab === "overview")) {
-          renderTab(currentTab);
-        }
+      // Smooth state subscriber (prevents destroying & re-creating the map DOM on simulation ticks)
+      window.msStore.subscribe((s) => {
+        // Map markers update smoothly in-place via js/map.js subscriber
       });
 
       window.MS_UI.attachLayoutEvents(renderTab);
