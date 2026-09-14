@@ -422,7 +422,7 @@ window.MS_MAP = (function () {
                   Threat Dossier
                 </button>
                 ${
-                  isCritical
+                  isCritical && (state.session?.role === "command" || (!state.session && window.location.pathname.includes("command")))
                     ? `
                   <button class="btn btn-danger btn-sm" style="padding:4px 8px;" title="Escalate to Incident" onclick="window.msStore.escalateVesselToIncident('${v.vesselId || v.id}')">
                     🚨 Intercept
