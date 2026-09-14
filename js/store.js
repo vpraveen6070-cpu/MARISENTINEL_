@@ -4,7 +4,7 @@
  */
 
 (function () {
-  const STORAGE_KEY = "marisentinel_state_v11"; // Calibrated threat alert intensity (4-5 critical threats daily max)
+  const STORAGE_KEY = "marisentinel_state_v12"; // Calibrated generative alerts (no built-in alerts, 4-5 critical threats max daily)
 
   /* ---------------- Maritime Geofencing Engine ---------------- */
   function getWestCoastMinLng(lat) {
@@ -1098,11 +1098,13 @@
           const threatType = classifyThreat(candidate, score);
           const level = score > 70 ? "HIGH" : score > 30 ? "MEDIUM" : "LOW";
 
-          // Alert generation for high threat vessels (throttled to 4-5 critical threats max daily)
+          // Generative alert engine: low realistic frequency (max 4-5 critical threats daily, max 6 total open alerts)
           const existingForVessel = (s.alerts || []).some(a => (a.vesselId === (v.vesselId || v.id) || a.vesselName === v.name) && a.status === "New");
-          const criticalCount = (s.alerts || []).filter(a => a.severity === "Critical" && a.status !== "Resolved" && a.status !== "False Alarm").length;
+          const activeAlertsList = (s.alerts || []).filter(a => a.status !== "Resolved" && a.status !== "False Alarm");
+          const criticalCount = activeAlertsList.filter(a => a.severity === "Critical").length;
+          const totalAlertsCount = activeAlertsList.length;
 
-          if (score >= 75 && !existingForVessel && Math.random() > 0.995) {
+          if (score >= 75 && !existingForVessel && totalAlertsCount < 6 && Math.random() > 0.997) {
             const isCritical = score >= 80 && criticalCount < 5;
             newAlerts.push({
               id: "AL-" + Math.floor(Math.random() * 9000 + 1000),
@@ -1164,7 +1166,7 @@
           });
         }
 
-        const alerts = newAlerts.length ? [...newAlerts, ...(s.alerts || [])].slice(0, 10) : s.alerts;
+        const alerts = newAlerts.length ? [...newAlerts, ...(s.alerts || [])].slice(0, 6) : s.alerts;
 
         return {
           ...s,
