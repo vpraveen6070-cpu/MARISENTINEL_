@@ -4,42 +4,52 @@
  */
 
 (function () {
-  const STORAGE_KEY = "marisentinel_state_v11"; // Bumped version for reduced threat intensity (4-5 critical threats max)
+  const STORAGE_KEY = "marisentinel_state_v12"; // Bumped version for strict Bay of Bengal maritime geofencing
 
-  /* ---------------- Maritime Geofencing Engine ---------------- */
+  /* ---------------- Maritime Geofencing Engine (Bay of Bengal Open Waters Only) ---------------- */
   function getWestCoastMinLng(lat) {
-    if (lat <= 9.0) return 79.2;
-    if (lat <= 11.0) return 79.8 + ((lat - 9.0) * (80.0 - 79.8)) / 2.0;
-    if (lat <= 13.0) return 80.0 + ((lat - 11.0) * (80.35 - 80.0)) / 2.0;
-    if (lat <= 15.5) return 80.35 + ((lat - 13.0) * (80.25 - 80.35)) / 2.5;
-    if (lat <= 16.5) return 80.25 + ((lat - 15.5) * (81.8 - 80.25)) / 1.0;
-    if (lat <= 17.5) return 81.8 + ((lat - 16.5) * (83.2 - 81.8)) / 1.0;
-    if (lat <= 18.5) return 83.2 + ((lat - 17.5) * (84.1 - 83.2)) / 1.0;
-    if (lat <= 19.5) return 84.1 + ((lat - 18.5) * (85.2 - 84.1)) / 1.0;
-    if (lat <= 20.5) return 85.2 + ((lat - 19.5) * (86.8 - 85.2)) / 1.0;
-    if (lat <= 21.5) return 86.8 + ((lat - 20.5) * (87.7 - 86.8)) / 1.0;
-    return 87.7 + ((lat - 21.5) * (88.5 - 87.7)) / 0.5;
+    if (lat <= 7.8) return 79.5;
+    if (lat <= 9.8) return 81.8; // Avoid Sri Lanka land mass (79.5°E to 81.8°E)
+    if (lat <= 11.0) return 80.1; // Tamil Nadu coast
+    if (lat <= 13.5) return 80.3; // Chennai / Puducherry coast
+    if (lat <= 15.5) return 80.4; // Nellore / AP coast
+    if (lat <= 17.0) return 82.3; // Machilipatnam / Kakinada coast
+    if (lat <= 18.2) return 83.3; // Visakhapatnam coast
+    if (lat <= 19.5) return 85.0; // Gopalpur / Puri coast
+    if (lat <= 20.8) return 86.8; // Paradip / Dhamra coast
+    return 87.2;                  // West Bengal / Digha coast
   }
 
   function getEastCoastMaxLng(lat) {
-    if (lat >= 21.0) return 91.8;
-    if (lat >= 20.0) return 92.4;
-    if (lat >= 18.0) return 93.6;
-    if (lat >= 16.0) return 94.4;
-    if (lat >= 14.0) return 97.2;
-    return 98.0;
+    if (lat >= 20.5) return 90.8; // Avoid Bangladesh / Chittagong land mass
+    if (lat >= 19.0) return 92.5; // Avoid Myanmar Northern coast
+    if (lat >= 15.0) return 93.2; // Avoid Myanmar Central coast
+    if (lat >= 10.0) return 93.8; // Avoid Andaman Sea east land
+    return 94.2;                  // South Andaman / Nicobar Sea
   }
 
   function isPointInMaritimeArea(lat, lng) {
     if (typeof lat !== "number" || typeof lng !== "number" || isNaN(lat) || isNaN(lng)) return false;
-    if (lat < 7.5 || lat > 22.5) return false;
-    const minLng = getWestCoastMinLng(lat) - 0.2;
-    const maxLng = getEastCoastMaxLng(lat) + 0.2;
+    // Strict Latitude limits for Bay of Bengal Grid (7.8°N to 21.2°N)
+    if (lat < 7.8 || lat > 21.2) return false;
+
+    // Sri Lanka Land Exclude Box (7.8°N to 9.8°N, 79.5°E to 81.8°E)
+    if (lat >= 7.8 && lat <= 9.8 && lng >= 79.5 && lng <= 81.8) return false;
+
+    const minLng = getWestCoastMinLng(lat);
+    const maxLng = getEastCoastMaxLng(lat);
+
     return lng >= minLng && lng <= maxLng;
   }
 
   function clampToMaritime(lat, lng) {
-    let safeLat = Math.min(22.0, Math.max(8.0, lat || 17.5));
+    let safeLat = Math.min(21.2, Math.max(7.8, lat || 17.5));
+    
+    // If in Sri Lanka box, push out into open Bay of Bengal (east of Sri Lanka)
+    if (safeLat >= 7.8 && safeLat <= 9.8 && (lng || 83.0) < 81.8) {
+      return [Math.round(safeLat * 1000) / 1000, 82.2];
+    }
+
     const minLng = getWestCoastMinLng(safeLat);
     const maxLng = getEastCoastMaxLng(safeLat);
     let safeLng = Math.min(maxLng, Math.max(minLng, lng || 84.5));
@@ -198,6 +208,8 @@
         localStorage.removeItem("marisentinel_state_v7");
         localStorage.removeItem("marisentinel_state_v8");
         localStorage.removeItem("marisentinel_state_v9");
+        localStorage.removeItem("marisentinel_state_v10");
+        localStorage.removeItem("marisentinel_state_v11");
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
@@ -1043,13 +1055,17 @@
           let nextLng = v.lng + Math.sin(rad) * drift * (v.speed / 10);
           let nextCourse = v.course;
 
-          // Strictly geofence in Bay of Bengal water
+          // Strictly geofence in Bay of Bengal open water
           if (!isPointInMaritimeArea(nextLat, nextLng)) {
-            // Steer vessel back into open sea
-            nextCourse = Math.round((v.course + 135 + Math.random() * 60) % 360);
             const [cLat, cLng] = clampToMaritime(nextLat, nextLng);
             nextLat = cLat;
             nextLng = cLng;
+            // Steer vessel back toward center of Bay of Bengal (16.5°N, 86.0°E)
+            const dLat = 16.5 - nextLat;
+            const dLng = 86.0 - nextLng;
+            let targetAngle = (Math.atan2(dLng, dLat) * 180) / Math.PI;
+            if (targetAngle < 0) targetAngle += 360;
+            nextCourse = Math.round((targetAngle + (Math.random() - 0.5) * 30 + 360) % 360);
           } else {
             nextCourse = Math.round((v.course + (Math.random() - 0.5) * 6 + 360) % 360);
           }
