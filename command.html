@@ -38,10 +38,10 @@
         <div class="modal-body">
           <div style="background:var(--bg-card-subtle); padding:12px; border-radius:var(--radius-md); margin-bottom:14px; border:1px solid var(--border-color);">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-              <strong id="dispatch-alert-title" style="font-size:14px;">Threat Alert</strong>
+              <strong id="dispatch-alert-title" style="font-size:16px;">Threat Alert</strong>
               <span id="dispatch-alert-risk" class="badge badge-critical">Critical</span>
             </div>
-            <p id="dispatch-alert-desc" style="font-size:12px; color:var(--text-muted); margin-top:4px;">Zone & Vessel info</p>
+            <p id="dispatch-alert-desc" style="font-size:14px; color:var(--text-muted); margin-top:4px;">Zone & Vessel info</p>
           </div>
 
           <div class="form-group">
@@ -236,7 +236,7 @@
                     <div class="keyval-row"><span class="keyval-key">Wave Height</span><span class="keyval-val">${s.weather.waveM} m</span></div>
                     <div class="keyval-row"><span class="keyval-key">Visibility</span><span class="keyval-val">${s.weather.visibilityKm} km</span></div>
                     <div class="keyval-row"><span class="keyval-key">Sea State</span><span class="keyval-val">${s.weather.seaState}</span></div>
-                    <div style="margin-top: 10px; padding: 8px; border-radius: var(--radius-md); background: var(--status-warn-bg); color: var(--status-warn); font-size: 11px;">
+                    <div style="margin-top: 10px; padding: 8px; border-radius: var(--radius-md); background: var(--status-warn-bg); color: var(--status-warn); font-size: 13px;">
                       ⚠️ ${s.weather.advisory}
                     </div>
                   </div>
@@ -250,8 +250,8 @@
                     ${highRiskVessels.map(v => `
                       <div style="padding: 6px 0; border-bottom: 1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="window.openThreatDossier('${v.id}')">
                         <div>
-                          <strong style="font-size:12px; color:var(--primary);">${v.name}</strong>
-                          <span style="font-size:10px; color:var(--text-muted); display:block;">${v.type} · ${v.speed} kts</span>
+                          <strong style="font-size:14px; color:var(--primary);">${v.name}</strong>
+                          <span style="font-size:12px; color:var(--text-muted); display:block;">${v.type} · ${v.speed} kts</span>
                         </div>
                         <span class="badge ${v.risk >= 80 ? 'badge-critical' : v.risk >= 60 ? 'badge-danger' : 'badge-warn'}">${v.risk}/100</span>
                       </div>
@@ -495,16 +495,16 @@
                     </div>
 
                     <div style="margin-top:16px;">
-                      <p style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">Operational Timeline</p>
+                      <p style="font-size:13px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">Operational Timeline</p>
                       <div class="timeline-list">
                         ${inc.timeline.map(t => `
                           <div class="timeline-item">
                             <span class="timeline-dot"></span>
                             <div style="display:flex; justify-content:space-between;">
-                              <strong style="font-size:12px;">${t.status}</strong>
-                              <span style="font-size:10px; color:var(--text-muted);">${window.MS_UI.fmtTime(t.ts)}</span>
+                              <strong style="font-size:14px;">${t.status}</strong>
+                              <span style="font-size:12px; color:var(--text-muted);">${window.MS_UI.fmtTime(t.ts)}</span>
                             </div>
-                            <p style="font-size:11px; color:var(--text-muted); margin-top:2px;">${t.note} (${t.actor})</p>
+                            <p style="font-size:13px; color:var(--text-muted); margin-top:2px;">${t.note} (${t.actor})</p>
                           </div>
                         `).join("")}
                       </div>
@@ -521,7 +521,7 @@
                       </div>
                     ` : `
                       <div style="margin-top:16px; text-align:right;">
-                        <span class="badge badge-ok" style="font-size:12px;">✓ Incident Resolved &amp; Archived</span>
+                        <span class="badge badge-ok" style="font-size:14px;">✓ Incident Resolved &amp; Archived</span>
                       </div>
                     `}
                   </div>
@@ -570,13 +570,13 @@
                       <circle cx="100" cy="100" r="70" fill="none" stroke="#0284c7" stroke-width="32" stroke-dasharray="80 440" stroke-dashoffset="-360" />
                     </svg>
 
-                    <div style="position:absolute; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:8px 14px; border-radius:8px; box-shadow:var(--shadow-lg); font-size:12px; font-weight:600;">
-                      <div style="font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:2px;">Primary Threat</div>
+                    <div style="position:absolute; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:8px 14px; border-radius:8px; box-shadow:var(--shadow-lg); font-size:14px; font-weight:600;">
+                      <div style="font-size:12px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:2px;">Primary Threat</div>
                       Zone Intrusion : 55%
                     </div>
                   </div>
 
-                  <div style="display:flex; justify-content:center; gap:16px; margin-top:10px; font-size:11px; color:var(--text-muted);">
+                  <div style="display:flex; justify-content:center; gap:16px; margin-top:10px; font-size:13px; color:var(--text-muted);">
                     <span><strong style="color:#f97316;">■</strong> Zone Intrusion (55%)</span>
                     <span><strong style="color:#ef4444;">■</strong> Blackout (25%)</span>
                     <span><strong style="color:#0284c7;">■</strong> Loitering (20%)</span>
@@ -590,7 +590,7 @@
                 </div>
                 <div class="panel-body" style="height: 280px; display:flex; flex-direction:column; justify-content:space-around;">
                   <div>
-                    <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                    <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:4px;">
                       <span>Low Risk (0–40)</span>
                       <strong style="color:var(--secondary);">${s.vessels.filter(v => v.risk < 40).length} vessels</strong>
                     </div>
@@ -598,7 +598,7 @@
                   </div>
 
                   <div>
-                    <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                    <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:4px;">
                       <span>Elevated (41–60)</span>
                       <strong style="color:var(--status-warn);">${s.vessels.filter(v => v.risk >= 40 && v.risk < 60).length} vessels</strong>
                     </div>
@@ -606,7 +606,7 @@
                   </div>
 
                   <div>
-                    <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                    <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:4px;">
                       <span>High Risk (61–80)</span>
                       <strong style="color:var(--status-danger);">${s.vessels.filter(v => v.risk >= 60 && v.risk < 80).length} vessels</strong>
                     </div>
@@ -614,7 +614,7 @@
                   </div>
 
                   <div>
-                    <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                    <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:4px;">
                       <span>Critical (81–100)</span>
                       <strong style="color:var(--tertiary);">${s.vessels.filter(v => v.risk >= 80).length} vessels</strong>
                     </div>
@@ -677,10 +677,10 @@
           <div style="background:var(--bg-card-subtle); padding:14px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:14px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <div>
-                <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-muted);">Tactical Threat Level</div>
-                <div style="font-size:16px; font-weight:800; color:${levelColor}; margin-top:2px;">${threatType}</div>
+                <div style="font-size:13px; font-weight:700; text-transform:uppercase; color:var(--text-muted);">Tactical Threat Level</div>
+                <div style="font-size:18px; font-weight:800; color:${levelColor}; margin-top:2px;">${threatType}</div>
               </div>
-              <span class="badge" style="font-size:13px; background:${levelColor}; color:#ffffff; font-weight:700;">${level} (${score} / 100)</span>
+              <span class="badge" style="font-size:15px; background:${levelColor}; color:#ffffff; font-weight:700;">${level} (${score} / 100)</span>
             </div>
             <div class="risk-meter-bar" style="margin-top:10px;">
               <div class="risk-meter-fill" style="width:${score}%; background:${levelColor};"></div>
@@ -699,8 +699,8 @@
             <span class="form-label">Threat Reasoning Breakdown:</span>
             <div style="margin-top:6px; display:flex; flex-direction:column; gap:6px;">
               ${reasonsList && reasonsList.length 
-                ? reasonsList.map(b => `<div style="background:#fef2f2; border:1px solid #fecaca; padding:6px 10px; border-radius:6px; font-size:12px; color:#dc2626; display:flex; align-items:center; gap:6px;"><span>⚠️</span> <strong>${b}</strong></div>`).join("")
-                : `<div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:6px 10px; border-radius:6px; font-size:12px; color:#16a34a;">✓ Standard navigation pattern verified</div>`}
+                ? reasonsList.map(b => `<div style="background:#fef2f2; border:1px solid #fecaca; padding:6px 10px; border-radius:6px; font-size:14px; color:#dc2626; display:flex; align-items:center; gap:6px;"><span>⚠️</span> <strong>${b}</strong></div>`).join("")
+                : `<div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:6px 10px; border-radius:6px; font-size:14px; color:#16a34a;">✓ Standard navigation pattern verified</div>`}
             </div>
           </div>
         `;

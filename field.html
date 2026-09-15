@@ -127,17 +127,17 @@
               </div>
               <div class="metric-card">
                 <div class="metric-label">Coastal Radar Range</div>
-                <div class="metric-value mono-num" style="color:var(--status-ok); font-size:18px;">120 NM</div>
+                <div class="metric-value mono-num" style="color:var(--status-ok); font-size:21px;">120 NM</div>
                 <div class="metric-hint">Coastal Radar Grid Active</div>
               </div>
               <div class="metric-card">
                 <div class="metric-label">Active Field Alerts</div>
-                <div class="metric-value mono-num" style="color:var(--status-warn); font-size:18px;">${(s.alerts || []).length}</div>
+                <div class="metric-value mono-num" style="color:var(--status-warn); font-size:21px;">${(s.alerts || []).length}</div>
                 <div class="metric-hint">Tactical Broadcast Queue</div>
               </div>
               <div class="metric-card">
                 <div class="metric-label">Fast Patrol Craft</div>
-                <div class="metric-value" style="color:var(--secondary); font-size:18px;">STANDBY</div>
+                <div class="metric-value" style="color:var(--secondary); font-size:21px;">STANDBY</div>
                 <div class="metric-hint">Rapid Interception Readiness</div>
               </div>
             </div>
@@ -167,8 +167,8 @@
                 </div>
                 <div class="panel-body">
                   ${activeMission ? `
-                    <h3 style="font-size:15px; font-weight:700;">${activeMission.title}</h3>
-                    <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">${activeMission.description}</p>
+                    <h3 style="font-size:18px; font-weight:700;">${activeMission.title}</h3>
+                    <p style="font-size:14px; color:var(--text-muted); margin-top:4px;">${activeMission.description}</p>
                     
                     <div style="margin-top:14px;">
                       <div class="keyval-row"><span class="keyval-key">Target Contact</span><span class="keyval-val">${activeMission.vesselName}</span></div>
@@ -186,7 +186,7 @@
                       </button>
                     </div>
                   ` : `
-                    <p style="color:var(--text-muted); font-size:12px;">No active missions in your queue. Status: Standing by in ${me.region}.</p>
+                    <p style="color:var(--text-muted); font-size:14px;">No active missions in your queue. Status: Standing by in ${me.region}.</p>
                   `}
                 </div>
               </div>
@@ -226,8 +226,8 @@
                       <span class="badge ${window.MS_UI.getBadgeClass(inc.status)}">${inc.status}</span>
                     </div>
                     <div class="panel-body">
-                      <strong style="font-size:14px; color:var(--primary);">${inc.title}</strong>
-                      <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">${inc.description}</p>
+                      <strong style="font-size:16px; color:var(--primary);">${inc.title}</strong>
+                      <p style="font-size:14px; color:var(--text-muted); margin-top:4px;">${inc.description}</p>
                       
                       <div style="margin-top:12px;">
                         <div class="keyval-row"><span class="keyval-key">Target Vessel</span><span class="keyval-val">${inc.vesselName}</span></div>
@@ -239,7 +239,7 @@
                       <!-- Acceptance & Rejection Actions only if pending acceptance -->
                       ${currentIdx === 0 ? `
                       <div style="margin-top:14px; padding:10px; background:var(--bg-card-subtle); border-radius:var(--radius-md); border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size:12px; font-weight:600;">Assignment Action:</span>
+                        <span style="font-size:14px; font-weight:600;">Assignment Action:</span>
                         <div style="display:flex; gap:6px;">
                           <button class="btn btn-success btn-sm" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Accepted', 'Officer accepted mission dispatch.'); renderTab('missions');">
                             ✓ Accept Mission
@@ -253,12 +253,12 @@
 
                       <!-- 6-Stage Tactical Status Workflow -->
                       <div style="margin-top:16px;">
-                        <label class="form-label" style="font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">
+                        <label class="form-label" style="font-size:13px; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">
                           Tactical Execution Stages:
                         </label>
                         <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
                           ${currentIdx >= 1 ? `
-                            <span class="badge badge-ok" style="font-size:11px; padding:5px 9px;">✓ 1. Accepted</span>
+                            <span class="badge badge-ok" style="font-size:13px; padding:6px 11px;">✓ 1. Accepted</span>
                           ` : `
                             <button class="btn btn-primary btn-sm" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Accepted', 'Officer acknowledged mission orders.'); renderTab('missions');">
                               1. Accept Mission
@@ -266,7 +266,7 @@
                           `}
 
                           ${currentIdx >= 2 ? `
-                            <span class="badge badge-ok" style="font-size:11px; padding:5px 9px;">✓ 2. En Route</span>
+                            <span class="badge badge-ok" style="font-size:13px; padding:6px 11px;">✓ 2. En Route</span>
                           ` : currentIdx >= 1 ? `
                             <button class="btn btn-primary btn-sm" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'En Route', 'Fast Interceptor Craft IC-114 underway to target.'); window.msStore.simulateOfficerMovement('${me.id}', '${inc.id}'); renderTab('missions');">
                               2. En Route
@@ -274,7 +274,7 @@
                           ` : ''}
 
                           ${currentIdx >= 3 ? `
-                            <span class="badge badge-ok" style="font-size:11px; padding:5px 9px;">✓ 3. Target Located</span>
+                            <span class="badge badge-ok" style="font-size:13px; padding:6px 11px;">✓ 3. Target Located</span>
                           ` : currentIdx >= 2 ? `
                             <button class="btn btn-primary btn-sm" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Target Located', 'Visual contact established with vessel. Closing to 50m for observation.'); renderTab('missions');">
                               3. Target Located
@@ -282,7 +282,7 @@
                           ` : ''}
 
                           ${currentIdx >= 4 ? `
-                            <span class="badge badge-ok" style="font-size:11px; padding:5px 9px;">✓ 4. Request Interception</span>
+                            <span class="badge badge-ok" style="font-size:13px; padding:6px 11px;">✓ 4. Request Interception</span>
                           ` : currentIdx >= 3 ? `
                             <button class="btn btn-primary btn-sm" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Request Interception', 'Suspicious activity observed. Requesting Command authorization for tactical boarding & search.'); renderTab('missions');">
                               4. Request Interception
@@ -290,7 +290,7 @@
                           ` : ''}
 
                           ${currentIdx >= 5 ? `
-                            <span class="badge badge-ok" style="font-size:11px; padding:5px 9px;">✓ 5. Action Executed</span>
+                            <span class="badge badge-ok" style="font-size:13px; padding:6px 11px;">✓ 5. Action Executed</span>
                           ` : currentIdx >= 4 ? `
                             <button class="btn btn-primary btn-sm" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Action Executed', 'Authorized action completed: Vessel boarded, master interviewed, and cargo manifest verified.'); renderTab('missions');">
                               5. Action Executed
@@ -308,7 +308,7 @@
                     <!-- Quick Field Note Log Form -->
                     <div style="margin-top:16px;">
                       <div style="display:flex; gap:6px;">
-                        <input type="text" id="quick-note-${inc.id}" class="input-field" placeholder="Add observation note (e.g. Reached location, vessel inactive)..." style="font-size:12px;" />
+                        <input type="text" id="quick-note-${inc.id}" class="input-field" placeholder="Add observation note (e.g. Reached location, vessel inactive)..." style="font-size:14px;" />
                         <button class="btn btn-secondary btn-sm" onclick="const nt = document.getElementById('quick-note-${inc.id}').value; if(nt){ window.msStore.addIncidentNote('${inc.id}', nt); renderTab('missions'); }">
                           Log Note
                         </button>
@@ -317,16 +317,16 @@
 
                     <!-- Timeline -->
                     <div style="margin-top:16px;">
-                      <p style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">Mission Timeline</p>
+                      <p style="font-size:13px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">Mission Timeline</p>
                       <div class="timeline-list">
                         ${inc.timeline.map(t => `
                           <div class="timeline-item">
                             <span class="timeline-dot"></span>
                             <div style="display:flex; justify-content:space-between;">
-                              <strong style="font-size:12px;">${t.status}</strong>
-                              <span style="font-size:10px; color:var(--text-muted);">${window.MS_UI.fmtTime(t.ts)}</span>
+                              <strong style="font-size:14px;">${t.status}</strong>
+                              <span style="font-size:12px; color:var(--text-muted);">${window.MS_UI.fmtTime(t.ts)}</span>
                             </div>
-                            <p style="font-size:11px; color:var(--text-muted); margin-top:2px;">${t.note} (${t.actor})</p>
+                            <p style="font-size:13px; color:var(--text-muted); margin-top:2px;">${t.note} (${t.actor})</p>
                           </div>
                         `).join("")}
                       </div>
@@ -420,16 +420,16 @@
                   <div style="display:flex; flex-direction:column; gap:10px;">
                     <div style="padding:10px; border:1px solid var(--border-color); border-radius:var(--radius-md); background:var(--bg-card-subtle); display:flex; justify-content:space-between; align-items:center;">
                       <div>
-                        <strong style="font-size:13px;">📸 hull-inspection-stern.jpg</strong>
-                        <p style="font-size:11px; color:var(--text-muted);">Optical camera · 2.4 MB · High resolution</p>
+                        <strong style="font-size:15px;">📸 hull-inspection-stern.jpg</strong>
+                        <p style="font-size:13px; color:var(--text-muted);">Optical camera · 2.4 MB · High resolution</p>
                       </div>
                       <span class="badge badge-ok">Verified</span>
                     </div>
 
                     <div style="padding:10px; border:1px solid var(--border-color); border-radius:var(--radius-md); background:var(--bg-card-subtle); display:flex; justify-content:space-between; align-items:center;">
                       <div>
-                        <strong style="font-size:13px;">🎥 flir-thermal-track.mp4</strong>
-                        <p style="font-size:11px; color:var(--text-muted);">FLIR night sensor video · 18.6 MB</p>
+                        <strong style="font-size:15px;">🎥 flir-thermal-track.mp4</strong>
+                        <p style="font-size:13px; color:var(--text-muted);">FLIR night sensor video · 18.6 MB</p>
                       </div>
                       <span class="badge badge-ok">Verified</span>
                     </div>
@@ -437,8 +437,8 @@
                     ${(reportInc?.evidence || []).map(ev => `
                       <div style="padding:10px; border:1px solid var(--border-color); border-radius:var(--radius-md); background:var(--bg-card-subtle); display:flex; justify-content:space-between; align-items:center;">
                         <div>
-                          <strong style="font-size:13px;">📁 ${ev.name}</strong>
-                          <p style="font-size:11px; color:var(--text-muted);">${ev.type} · ${ev.notes || 'On-scene evidence'}</p>
+                          <strong style="font-size:15px;">📁 ${ev.name}</strong>
+                          <p style="font-size:13px; color:var(--text-muted);">${ev.type} · ${ev.notes || 'On-scene evidence'}</p>
                         </div>
                         <span class="badge badge-ok">Uploaded</span>
                       </div>

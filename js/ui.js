@@ -177,8 +177,8 @@ window.MS_UI = (function () {
     return `
       <div class="notification-dropdown-header">
         <div style="display:flex; align-items:center; gap:8px;">
-          <strong style="font-size:13px; color:var(--text-main);">Notifications</strong>
-          ${unreadCount > 0 ? `<span class="badge badge-critical" style="font-size:10px;">${unreadCount} Unread</span>` : ""}
+          <strong style="font-size:15px; color:var(--text-main);">Notifications</strong>
+          ${unreadCount > 0 ? `<span class="badge badge-critical" style="font-size:12px;">${unreadCount} Unread</span>` : ""}
         </div>
       </div>
 
@@ -207,18 +207,18 @@ window.MS_UI = (function () {
               <div class="notification-item-content">
                 <div class="notification-item-title">
                   <span>${n.title}</span>
-                  <span style="font-size:10px; font-weight:400; color:var(--text-muted);">${timeAgo(n.ts)}</span>
+                  <span style="font-size:12px; font-weight:400; color:var(--text-muted);">${timeAgo(n.ts)}</span>
                 </div>
                 <div class="notification-item-desc">${n.message}</div>
                 <div class="notification-item-actions">
                   ${
                     n.vesselId
-                      ? `<button class="btn btn-primary btn-sm" style="padding:2px 6px; font-size:10px;" onclick="event.stopPropagation(); window.openThreatDossier('${n.vesselId}');">Inspect Dossier</button>`
+                      ? `<button class="btn btn-primary btn-sm" style="padding:4px 8px; font-size:12px;" onclick="event.stopPropagation(); window.openThreatDossier('${n.vesselId}');">Inspect Dossier</button>`
                       : ""
                   }
                   ${
                     n.incidentId
-                      ? `<button class="btn btn-secondary btn-sm" style="padding:2px 6px; font-size:10px;" onclick="event.stopPropagation(); if(window.renderTab){ window.renderTab('incidents'); }">View Incident</button>`
+                      ? `<button class="btn btn-secondary btn-sm" style="padding:4px 8px; font-size:12px;" onclick="event.stopPropagation(); if(window.renderTab){ window.renderTab('incidents'); }">View Incident</button>`
                       : ""
                   }
                 </div>
@@ -231,7 +231,7 @@ window.MS_UI = (function () {
       </div>
 
       <div class="notification-dropdown-footer" style="justify-content:flex-end;">
-        <button class="btn btn-secondary btn-sm" style="padding:2px 6px; font-size:10px;" onclick="window.msStore.clearNotifications('${currentRole}');">Clear All</button>
+        <button class="btn btn-secondary btn-sm" style="padding:4px 8px; font-size:12px;" onclick="window.msStore.clearNotifications('${currentRole}');">Clear All</button>
       </div>
     `;
   }
@@ -273,7 +273,7 @@ window.MS_UI = (function () {
 
         <div class="sidebar-footer">
           <div class="flex items-center gap-2" style="display:flex;align-items:center;gap:8px;">
-            <span style="font-size:11px;color:var(--text-muted);">Region: <strong>Bay of Bengal</strong></span>
+            <span style="font-size:13px;color:var(--text-muted);">Region: <strong>Bay of Bengal</strong></span>
           </div>
           <button id="logout-btn" class="btn btn-secondary btn-sm" style="width:100%;">
             Log out
@@ -316,12 +316,12 @@ window.MS_UI = (function () {
           </div>
 
           <div class="user-profile-badge" style="display:flex;align-items:center;gap:8px;padding:4px 10px;border-radius:var(--radius-md);border:1px solid var(--border-color);background:var(--bg-card);cursor:pointer;" title="View profile">
-            <div style="width:24px;height:24px;border-radius:50%;background:rgba(15,23,42,0.1);display:grid;place-items:center;font-size:10px;font-weight:700;color:var(--primary);">
+            <div style="width:28px;height:28px;border-radius:50%;background:rgba(15,23,42,0.1);display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--primary);">
               ${session.name.slice(0, 2).toUpperCase()}
             </div>
             <div style="line-height:1.2;">
-              <span style="font-size:12px;font-weight:600;display:block;">${session.name}</span>
-              <span style="font-size:10px;color:var(--text-muted);display:block;text-transform:capitalize;">${session.role}</span>
+              <span style="font-size:14px;font-weight:600;display:block;">${session.name}</span>
+              <span style="font-size:12px;color:var(--text-muted);display:block;text-transform:capitalize;">${session.role}</span>
             </div>
           </div>
         </div>
@@ -513,9 +513,9 @@ window.MS_UI = (function () {
             <div style="width: 72px; height: 72px; border-radius: 50%; background: rgba(15,23,42,0.1); border: 2px solid var(--primary); margin: 0 auto 14px; display: grid; place-items: center; font-size: 24px; font-weight: 800; color: var(--primary);">
               ${(session.name || userObj.name).slice(0, 2).toUpperCase()}
             </div>
-            <h2 style="font-size: 18px; font-weight: 700; color: var(--text-main);">${session.name || userObj.name}</h2>
+            <h2 style="font-size: 22px; font-weight: 700; color: var(--text-main);">${session.name || userObj.name}</h2>
             <span class="badge badge-primary" style="margin-top: 4px; text-transform: uppercase;">${role}</span>
-            <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">${userObj.title || defaultInfo.title}</p>
+            <p style="font-size: 14px; color: var(--text-muted); margin-top: 8px;">${userObj.title || defaultInfo.title}</p>
             
             <div style="margin-top: 20px; text-align: left; border-top: 1px solid var(--border-color); padding-top: 14px;">
               <div class="keyval-row"><span class="keyval-key">Operator ID</span><span class="keyval-val mono">${userObj.id || 'USR-OP-408'}</span></div>

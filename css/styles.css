@@ -130,7 +130,7 @@ html, body {
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background-color: var(--bg-app);
   color: var(--text-main);
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -205,7 +205,7 @@ button {
 }
 
 .panel-header h2, .panel-header h3 {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -239,7 +239,7 @@ button {
 }
 
 .metric-label {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.14em;
@@ -250,7 +250,7 @@ button {
 }
 
 .metric-value {
-  font-size: 26px;
+  font-size: 32px;
   font-weight: 700;
   margin-top: 8px;
   color: var(--text-main);
@@ -258,7 +258,7 @@ button {
 }
 
 .metric-hint {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
   margin-top: 4px;
 }
@@ -268,9 +268,9 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 8px;
+  padding: 4px 10px;
   border-radius: var(--radius-full);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -399,7 +399,7 @@ button {
   gap: 10px;
   padding: 8px 12px;
   border-radius: var(--radius-md);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--text-muted);
   transition: var(--transition);
@@ -516,7 +516,7 @@ button {
 
 .brand-text {
   font-weight: 800;
-  font-size: 15px;
+  font-size: 18px;
   letter-spacing: 0.14em;
   color: var(--text-main);
 }
@@ -532,14 +532,14 @@ button {
 }
 
 .section-title {
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text-main);
 }
 
 .section-subtitle {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text-muted);
   margin-top: 3px;
 }
@@ -555,7 +555,7 @@ button {
 }
 
 .form-label {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -585,7 +585,7 @@ button {
   gap: 8px;
   padding: 8px 16px;
   border-radius: var(--radius-md);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   transition: var(--transition);
 }
@@ -654,8 +654,8 @@ button {
 }
 
 .btn-sm {
-  padding: 5px 10px;
-  font-size: 11px;
+  padding: 6px 12px;
+  font-size: 13px;
 }
 
 /* Design System Chips & Tags */
@@ -666,7 +666,7 @@ button {
   gap: 6px;
   padding: 6px 10px;
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   transition: var(--transition);
 }
@@ -724,7 +724,7 @@ button {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .data-table th {
@@ -732,7 +732,7 @@ button {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-muted);
   border-bottom: 1px solid var(--border-color);
   background-color: var(--bg-card-subtle);
@@ -759,7 +759,7 @@ button {
   justify-content: space-between;
   padding: 6px 0;
   border-bottom: 1px solid var(--border-color);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .keyval-row:last-child {
@@ -824,7 +824,7 @@ button {
 }
 
 .modal-title {
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 700;
 }
 
@@ -882,7 +882,7 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
 }
 
@@ -926,12 +926,12 @@ button {
 }
 
 .ms-pin-marker {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
   color: #ffffff;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
@@ -966,15 +966,15 @@ button {
   border-radius: var(--radius-md);
   padding: 6px 12px;
   box-shadow: var(--shadow-md);
-  font-size: 12px;
-  min-width: 220px;
+  font-size: 14px;
+  min-width: 240px;
 }
 
 .ms-map-search-input {
   border: none;
   background: transparent;
   outline: none;
-  font-size: 12px;
+  font-size: 14px;
   width: 100%;
   color: var(--text-main);
 }
@@ -995,9 +995,9 @@ button {
 .ms-map-filter-btn {
   border: none;
   background: transparent;
-  padding: 4px 10px;
+  padding: 5px 12px;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-muted);
   cursor: pointer;
@@ -1025,7 +1025,7 @@ button {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   padding: 6px 12px;
-  font-size: 11.5px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--text-main);
   box-shadow: var(--shadow-md);
@@ -1045,7 +1045,7 @@ button {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   padding: 6px 12px;
-  font-size: 11.5px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--text-main);
   box-shadow: var(--shadow-md);
@@ -1061,11 +1061,11 @@ button {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-xl);
   padding: 12px;
-  min-width: 220px;
+  min-width: 240px;
   display: none;
   flex-direction: column;
   gap: 8px;
-  font-size: 11.5px;
+  font-size: 13.5px;
   z-index: 10001;
 }
 
@@ -1183,7 +1183,7 @@ button {
 
 .notification-badge {
   display: none;
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 800;
   color: #ffffff;
   background: var(--tertiary);
@@ -1253,7 +1253,7 @@ button {
   background: transparent;
   padding: 4px 8px;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-muted);
   cursor: pointer;
@@ -1325,7 +1325,7 @@ button {
 }
 
 .notification-item-title {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-main);
   margin-bottom: 3px;
@@ -1337,7 +1337,7 @@ button {
 }
 
 .notification-item-desc {
-  font-size: 11.5px;
+  font-size: 13px;
   color: var(--text-muted);
   line-height: 1.4;
   margin-bottom: 6px;

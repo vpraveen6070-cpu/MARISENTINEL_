@@ -107,7 +107,7 @@
     }
 
     .brand-title {
-      font-size: 14.5px;
+      font-size: 17px;
       font-weight: 800;
       letter-spacing: 0.08em;
       color: #0f172a;
@@ -117,7 +117,7 @@
     }
 
     .brand-subtitle {
-      font-size: 9px;
+      font-size: 11px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.14em;
@@ -130,8 +130,8 @@
     .btn-signin {
       background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
       color: #ffffff;
-      padding: 9px 24px;
-      font-size: 13.5px;
+      padding: 10px 26px;
+      font-size: 15.5px;
       font-weight: 600;
       border-radius: 8px;
       text-decoration: none;
@@ -174,9 +174,9 @@
       border: 1px solid rgba(255, 255, 255, 0.7);
       border-top: 1.5px solid rgba(255, 255, 255, 0.95);
       color: #0f172a;
-      padding: 6px 16px;
+      padding: 7px 18px;
       border-radius: 9999px;
-      font-size: 10.5px;
+      font-size: 12.5px;
       font-weight: 800;
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -195,7 +195,7 @@
 
     /* Main Typography */
     .hero-title {
-      font-size: clamp(48px, 6vw, 74px);
+      font-size: clamp(54px, 6vw, 80px);
       font-weight: 900;
       letter-spacing: -0.035em;
       color: #020617;
@@ -205,7 +205,7 @@
     }
 
     .hero-subtitle {
-      font-size: clamp(17px, 2.2vw, 21px);
+      font-size: clamp(19px, 2.2vw, 24px);
       font-weight: 700;
       color: #0f172a;
       line-height: 1.4;
@@ -215,7 +215,7 @@
     }
 
     .hero-desc {
-      font-size: 14px;
+      font-size: 16px;
       line-height: 1.8;
       color: #1e293b;
       max-width: 620px;
@@ -228,8 +228,8 @@
     .btn-enter {
       background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
       color: #ffffff;
-      padding: 14px 28px;
-      font-size: 14px;
+      padding: 16px 32px;
+      font-size: 16px;
       font-weight: 700;
       border-radius: 10px;
       text-decoration: none;
@@ -298,7 +298,7 @@
     }
 
     .stat-label {
-      font-size: 10px;
+      font-size: 12px;
       font-weight: 800;
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -310,7 +310,7 @@
     }
 
     .stat-val {
-      font-size: 28px;
+      font-size: 34px;
       font-weight: 900;
       color: #020617;
       line-height: 1;
@@ -325,7 +325,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 12px;
+      font-size: 14px;
       font-weight: 600;
       color: #1e293b;
       z-index: 10;
@@ -369,7 +369,7 @@
   <!-- Top Header -->
   <header class="home-header">
     <a href="index.html" class="brand-container">
-      <div class="brand-box">⚓</div>
+      <div class="brand-box"><img src="public/favicon.svg" alt="MARISENTINEL Logo" style="width:32px; height:32px; object-fit:contain;"></div>
       <div>
         <span class="brand-title">MARISENTINEL</span>
         <span class="brand-subtitle">AUTONOMOUS MARITIME INTELLIGENCE</span>
@@ -406,19 +406,19 @@
       <div class="stats-grid">
         <div class="stat-card">
           <span class="stat-label">TRACKED<br>VESSELS</span>
-          <span class="stat-val">22</span>
+          <span class="stat-val" id="stat-vessels">32</span>
         </div>
         <div class="stat-card">
           <span class="stat-label">SECURITY<br>ZONES</span>
-          <span class="stat-val">8</span>
+          <span class="stat-val" id="stat-zones">8</span>
         </div>
         <div class="stat-card">
           <span class="stat-label">LIVE DATA<br>FEEDS</span>
-          <span class="stat-val">3</span>
+          <span class="stat-val" id="stat-sources">4</span>
         </div>
         <div class="stat-card">
           <span class="stat-label">THREAT<br>SCORE</span>
-          <span class="stat-val">0–100</span>
+          <span class="stat-val" id="stat-threat">0–100</span>
         </div>
       </div>
 
@@ -437,6 +437,31 @@
     </div>
   </footer>
 
+  <script src="js/data.js"></script>
   <script src="js/bg-animation.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      try {
+        if (window.MS_DATA) {
+          const [vessels, zones, sources] = await Promise.all([
+            window.MS_DATA.loadVessels().catch(() => null),
+            window.MS_DATA.loadZones().catch(() => null),
+            window.MS_DATA.loadSources().catch(() => null)
+          ]);
+          if (vessels && Array.isArray(vessels)) {
+            document.getElementById("stat-vessels").textContent = vessels.length;
+          }
+          if (zones && Array.isArray(zones)) {
+            document.getElementById("stat-zones").textContent = zones.length;
+          }
+          if (sources && Array.isArray(sources)) {
+            document.getElementById("stat-sources").textContent = sources.length;
+          }
+        }
+      } catch (err) {
+        console.warn("Could not dynamically load index stats:", err);
+      }
+    });
+  </script>
 </body>
 </html>

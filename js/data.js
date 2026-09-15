@@ -1,544 +1,192 @@
+
 /**
- * MARISENTINEL — Initial Seed Dataset (Bay of Bengal & Andaman Sea Region)
- * Strictly verified maritime coordinates (all positions located in marine waters).
+ * MARISENTINEL — Dynamic Centralized Data Architecture & Loader
+ * Asynchronously loads modular datasets from /data/*.json
  */
 
-window.MS_SEED = {
-  vessels: [
-    {
-      id: "VS-001",
-      name: "MV Sagar Samrat",
-      flag: "India",
-      mmsi: "419000123",
-      imo: "9482110",
-      callsign: "VTSS",
-      type: "Offshore Support",
-      lat: 17.662,
-      lng: 83.395,
-      speed: 12.4,
-      course: 45,
-      risk: 86,
-      ais: "intermittent",
-      destination: "Visakhapatnam Anchorage",
-      eta: "14:30 UTC",
-      dimensions: "78m x 16m",
-      behaviours: ["Restricted naval zone entry", "Speed anomaly in channel", "AIS intermittent"],
-      zoneId: "ZN-001",
-      trail: [[17.58, 83.33], [17.62, 83.36], [17.662, 83.395]],
-      lastUpdate: new Date().toISOString()
+(function () {
+  const BASE_URL = "/data";
+
+  const MS_DATA = {
+    baseUrl: BASE_URL,
+    _cache: {},
+
+    /**
+     * Clean dataset name from path or filename
+     * e.g., "vessels", "/data/vessels.json", "vessels.json" -> "vessels"
+     */
+    _normalizeKey(keyOrPath) {
+      if (!keyOrPath) return "";
+      return keyOrPath
+        .replace(/^\/?data\//, "")
+        .replace(/\.json$/, "")
+        .trim();
     },
-    {
-      id: "VS-002",
-      name: "MT Ocean Pearl",
-      flag: "Panama",
-      mmsi: "354112000",
-      imo: "9312480",
-      callsign: "HO3491",
-      type: "Crude Oil Tanker",
-      lat: 19.82,
-      lng: 86.45,
-      speed: 0.4,
-      course: 110,
-      risk: 78,
-      ais: "active",
-      destination: "Paradip SPM Terminal",
-      eta: "Awaiting Berth",
-      dimensions: "244m x 42m",
-      behaviours: ["Prolonged loitering near SPM", "Unscheduled deepwater anchorage"],
-      zoneId: "ZN-003",
-      trail: [[19.88, 86.38], [19.85, 86.41], [19.82, 86.45]],
-      lastUpdate: new Date().toISOString()
+
+    /**
+     * Dynamically fetch a modular dataset from /data/<name>.json
+     * @param {string} datasetName - e.g. "vessels", "anomalies", "zones"
+     * @param {boolean} [forceRefresh=false]
+     */
+    async load(datasetName, forceRefresh = false) {
+      const key = this._normalizeKey(datasetName);
+      if (!key) throw new Error("Dataset name is required");
+
+      if (!forceRefresh && this._cache[key]) {
+        return this._cache[key];
+      }
+
+      const url = `${this.baseUrl}/${key}.json`;
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Failed to load dataset '${key}' from ${url} [HTTP ${response.status}: ${response.statusText}]`);
+        }
+        const data = await response.json();
+        this._cache[key] = data;
+        return data;
+      } catch (err) {
+        console.error(`[MS_DATA] Error fetching dataset '${key}':`, err);
+        throw err;
+      }
     },
-    {
-      id: "VS-003",
-      name: "FV Matsya Kanya",
-      flag: "India",
-      mmsi: "419887321",
-      imo: "N/A",
-      callsign: "FVMK",
-      type: "Deep Sea Trawler",
-      lat: 20.45,
-      lng: 87.35,
-      speed: 4.8,
-      course: 190,
-      risk: 32,
-      ais: "active",
-      destination: "Dhamra Fishing Harbor",
-      eta: "18:00 UTC",
-      dimensions: "28m x 7m",
-      behaviours: [],
-      zoneId: "ZN-004",
-      trail: [[20.55, 87.30], [20.50, 87.32], [20.45, 87.35]],
-      lastUpdate: new Date().toISOString()
+
+    // Individual dataset accessors
+    async loadVessels() {
+      return this.load("vessels");
     },
-    {
-      id: "VS-004",
-      name: "MV Bengal Pioneer",
-      flag: "Bangladesh",
-      mmsi: "405000456",
-      imo: "9218744",
-      callsign: "S2AB",
-      type: "General Cargo",
-      lat: 21.15,
-      lng: 89.35,
-      speed: 14.1,
-      course: 135,
-      risk: 24,
-      ais: "active",
-      destination: "Chittagong Port",
-      eta: "Tomorrow 06:00 UTC",
-      dimensions: "162m x 26m",
-      behaviours: [],
-      zoneId: "ZN-006",
-      trail: [[21.28, 89.25], [21.21, 89.30], [21.15, 89.35]],
-      lastUpdate: new Date().toISOString()
+    async loadZones() {
+      return this.load("zones");
     },
-    {
-      id: "VS-005",
-      name: "SS Eastern Star",
-      flag: "Liberia",
-      mmsi: "636015789",
-      imo: "9510098",
-      callsign: "A8KL",
-      type: "Bulk Carrier",
-      lat: 15.92,
-      lng: 81.85,
-      speed: 11.2,
-      course: 60,
-      risk: 82,
-      ais: "lost",
-      destination: "Kakinada Deepwater",
-      eta: "Unconfirmed",
-      dimensions: "190m x 32m",
-      behaviours: ["AIS transponder blackout", "Sudden erratic zigzag", "Unreported cargo route"],
-      zoneId: "ZN-002",
-      trail: [[15.78, 81.65], [15.85, 81.75], [15.92, 81.85]],
-      lastUpdate: new Date().toISOString()
+    async loadAlerts() {
+      return this.load("alerts");
     },
-    {
-      id: "VS-006",
-      name: "CG Baruna (IC-114)",
-      flag: "India",
-      mmsi: "419000999",
-      imo: "DEF-IC114",
-      callsign: "IC114",
-      type: "Coast Guard Patrol Craft",
-      lat: 17.68,
-      lng: 83.42,
-      speed: 28.5,
-      course: 210,
-      risk: 5,
-      ais: "active",
-      destination: "Sector Patrol 01",
-      eta: "On-Patrol",
-      dimensions: "50m x 8m",
-      behaviours: [],
-      zoneId: "ZN-001",
-      trail: [[17.75, 83.48], [17.71, 83.45], [17.68, 83.42]],
-      lastUpdate: new Date().toISOString()
+    async loadIncidents() {
+      return this.load("incidents");
     },
-    {
-      id: "VS-007",
-      name: "MT Golden Horizon",
-      flag: "Marshall Islands",
-      mmsi: "538004123",
-      imo: "9604512",
-      callsign: "V7XY",
-      type: "Chemical Tanker",
-      lat: 16.45,
-      lng: 82.55,
-      speed: 13.5,
-      course: 310,
-      risk: 18,
-      ais: "active",
-      destination: "Chennai Outer Roadstead",
-      eta: "Tomorrow 10:00 UTC",
-      dimensions: "182m x 27m",
-      behaviours: [],
-      zoneId: null,
-      trail: [[16.32, 82.68], [16.38, 82.61], [16.45, 82.55]],
-      lastUpdate: new Date().toISOString()
+    async loadAnomalies() {
+      try {
+        return await this.load("anomalies");
+      } catch {
+        return await this.load("threat-rules");
+      }
     },
-    {
-      id: "VS-008",
-      name: "FV Jal Deep (Dark Vessel)",
-      flag: "Unflagged / Unknown",
-      mmsi: "419772111",
-      imo: "N/A",
-      callsign: "UNKNOWN",
-      type: "Unidentified Wooden Craft",
-      lat: 18.25,
-      lng: 84.45,
-      speed: 3.2,
-      course: 85,
-      risk: 72,
-      ais: "intermittent",
-      destination: "Unreported",
-      eta: "Unknown",
-      dimensions: "18m x 5m",
-      behaviours: ["Nighttime dark vessel running without lights", "Intermittent radar cross-section"],
-      zoneId: null,
-      trail: [[18.18, 84.35], [18.21, 84.40], [18.25, 84.45]],
-      lastUpdate: new Date().toISOString()
+    async loadThreatRules() {
+      return this.loadAnomalies();
     },
-    {
-      id: "VS-009",
-      name: "MV Andaman Express",
-      flag: "India",
-      mmsi: "419000555",
-      imo: "9145621",
-      callsign: "VTAN",
-      type: "Passenger / Ro-Pax Ferry",
-      lat: 12.15,
-      lng: 93.10,
-      speed: 16.8,
-      course: 15,
-      risk: 12,
-      ais: "active",
-      destination: "Havelock Island",
-      eta: "16:00 UTC",
-      dimensions: "85m x 15m",
-      behaviours: [],
-      zoneId: "ZN-008",
-      trail: [[12.00, 93.02], [12.08, 93.06], [12.15, 93.10]],
-      lastUpdate: new Date().toISOString()
+    async loadWeather() {
+      return this.load("weather");
     },
-    {
-      id: "VS-010",
-      name: "MT Southern Breeze",
-      flag: "Singapore",
-      mmsi: "563001888",
-      imo: "9781290",
-      callsign: "9V882",
-      type: "LPG Tanker",
-      lat: 14.50,
-      lng: 81.10,
-      speed: 14.2,
-      course: 25,
-      risk: 42,
-      ais: "active",
-      destination: "Haldia Dock Complex",
-      eta: "In 2 days",
-      dimensions: "210m x 32m",
-      behaviours: ["Minor speed anomaly in coastal traffic corridor"],
-      zoneId: null,
-      trail: [[14.35, 81.00], [14.42, 81.05], [14.50, 81.10]],
-      lastUpdate: new Date().toISOString()
+    async loadUsers() {
+      return this.load("users");
     },
-    {
-      id: "VS-011",
-      name: "CMA CGM Coromandel",
-      flag: "France",
-      mmsi: "228394000",
-      imo: "9835783",
-      callsign: "FNQA",
-      type: "Container Ship (14,000 TEU)",
-      lat: 13.40,
-      lng: 81.50,
-      speed: 18.6,
-      course: 40,
-      risk: 15,
-      ais: "active",
-      destination: "Singapore Jurong Island",
-      eta: "3 Days",
-      dimensions: "366m x 51m",
-      behaviours: [],
-      zoneId: null,
-      trail: [[13.15, 81.25], [13.28, 81.38], [13.40, 81.50]],
-      lastUpdate: new Date().toISOString()
+    async loadSources() {
+      return this.load("sources");
     },
-    {
-      id: "VS-012",
-      name: "RV Haiyang Disan (Research Vessel)",
-      flag: "Foreign Survey Contact",
-      mmsi: "413998811",
-      imo: "9812450",
-      callsign: "BXZ9",
-      type: "Oceanographic Survey",
-      lat: 18.95,
-      lng: 85.60,
-      speed: 5.2,
-      course: 175,
-      risk: 88,
-      ais: "intermittent",
-      destination: "International Waters",
-      eta: "Surveying",
-      dimensions: "98m x 17m",
-      behaviours: ["Unauthorized sonar acoustic survey inside Indian EEZ", "Gopalpur missile corridor proximity"],
-      zoneId: "ZN-007",
-      trail: [[19.12, 85.55], [19.03, 85.58], [18.95, 85.60]],
-      lastUpdate: new Date().toISOString()
+    async loadAudit() {
+      return this.load("audit");
+    },
+    async loadNotifications() {
+      return this.load("notifications");
+    },
+    async loadRadarStations() {
+      return this.load("radar-stations");
+    },
+    async loadBoundaries() {
+      return this.load("maritime-boundaries");
+    },
+
+    /**
+     * Concurrently load all core application datasets
+     * and initialize window.MS_SEED for backwards compatibility.
+     */
+    async loadAll() {
+      try {
+        const [
+          vessels,
+          zones,
+          alerts,
+          incidents,
+          users,
+          sources,
+          weather,
+          audit,
+          threatRules,
+          notifications,
+          radarStations,
+          maritimeBoundaries
+        ] = await Promise.all([
+          this.loadVessels().catch((e) => { console.warn("Vessels load fallback:", e); return []; }),
+          this.loadZones().catch((e) => { console.warn("Zones load fallback:", e); return []; }),
+          this.loadAlerts().catch((e) => { console.warn("Alerts load fallback:", e); return []; }),
+          this.loadIncidents().catch((e) => { console.warn("Incidents load fallback:", e); return []; }),
+          this.loadUsers().catch((e) => { console.warn("Users load fallback:", e); return []; }),
+          this.loadSources().catch((e) => { console.warn("Sources load fallback:", e); return []; }),
+          this.loadWeather().catch((e) => {
+            console.warn("Weather load fallback:", e);
+            return {
+              windKts: 18,
+              windDir: "NE",
+              waveM: 2.1,
+              visibilityKm: 8.5,
+              seaState: "Moderate (Sea State 4)",
+              advisory: "Squall warning active for North-East quadrant.",
+              updatedAt: new Date().toISOString()
+            };
+          }),
+          this.loadAudit().catch((e) => { console.warn("Audit load fallback:", e); return []; }),
+          this.loadThreatRules().catch((e) => { console.warn("Threat rules load fallback:", e); return []; }),
+          this.loadNotifications().catch((e) => { console.warn("Notifications load fallback:", e); return []; }),
+          this.loadRadarStations().catch((e) => { console.warn("Radar stations load fallback:", e); return []; }),
+          this.loadBoundaries().catch((e) => { console.warn("Boundaries load fallback:", e); return null; })
+        ]);
+
+        const aggregated = {
+          vessels,
+          zones,
+          alerts,
+          incidents,
+          users,
+          sources,
+          weather,
+          audit,
+          threatRules,
+          notifications,
+          radarStations,
+          maritimeBoundaries
+        };
+
+        window.MS_SEED = aggregated;
+        return aggregated;
+      } catch (err) {
+        console.error("[MS_DATA] loadAll failed:", err);
+        throw err;
+      }
     }
-  ],
+  };
 
-  zones: [
-    {
-      id: "ZN-001",
-      name: "Visakhapatnam Naval Anchorage",
-      classification: "Critical",
-      lat: 17.68,
-      lng: 83.38,
-      radiusKm: 28,
-      status: "active",
-      description: "Eastern Naval Command core operational anchorage & submarine channel."
-    },
-    {
-      id: "ZN-002",
-      name: "Kakinada Offshore Energy Hub",
-      classification: "High Risk",
-      lat: 16.85,
-      lng: 82.45,
-      radiusKm: 32,
-      status: "active",
-      description: "Natural gas extraction platforms and KG-D6 deepwater drilling rigs."
-    },
-    {
-      id: "ZN-003",
-      name: "Paradip Strategic Approach",
-      classification: "Restricted",
-      lat: 20.20,
-      lng: 86.75,
-      radiusKm: 35,
-      status: "active",
-      description: "Commercial deepwater port and strategic crude terminal single point mooring."
-    },
-    {
-      id: "ZN-004",
-      name: "Dhamra River Delta Sanctuary",
-      classification: "Monitoring",
-      lat: 20.75,
-      lng: 87.10,
-      radiusKm: 24,
-      status: "active",
-      description: "Ecological reserve & monitored coastal passage."
-    },
-    {
-      id: "ZN-005",
-      name: "Chennai Outer Roadstead",
-      classification: "Restricted",
-      lat: 13.15,
-      lng: 80.38,
-      radiusKm: 22,
-      status: "active",
-      description: "Major container corridor and naval vessel escort route."
-    },
-    {
-      id: "ZN-006",
-      name: "Sundarbans Maritime Border",
-      classification: "Critical",
-      lat: 21.55,
-      lng: 89.25,
-      radiusKm: 40,
-      status: "active",
-      description: "Transboundary international maritime boundary line (IMBL)."
-    },
-    {
-      id: "ZN-007",
-      name: "Gopalpur Defence Test Range",
-      classification: "Critical",
-      lat: 19.15,
-      lng: 85.05,
-      radiusKm: 30,
-      status: "active",
-      description: "Integrated Test Range surface-to-air missile testing corridor."
-    },
-    {
-      id: "ZN-008",
-      name: "Port Blair Security Corridor",
-      classification: "High Risk",
-      lat: 11.68,
-      lng: 92.78,
-      radiusKm: 36,
-      status: "active",
-      description: "Andaman & Nicobar tri-service command maritime transit sector."
-    }
-  ],
+  /**
+   * Global dynamic loader function matching project requirement
+   * e.g. const vessels = await loadData('vessels.json');
+   */
+  async function loadData(filenameOrKey) {
+    return MS_DATA.load(filenameOrKey);
+  }
 
-  alerts: [
-    {
-      id: "AL-1001",
-      ts: new Date(Date.now() - 12 * 60000).toISOString(),
-      vesselId: "VS-001",
-      vesselName: "MV Sagar Samrat",
-      threatType: "Restricted Naval Anchorage Breach",
-      risk: 86,
-      severity: "Critical",
-      zoneName: "Visakhapatnam Naval Anchorage",
-      status: "New",
-      lat: 17.662,
-      lng: 83.395,
-      behaviours: ["Restricted naval zone entry", "Speed anomaly in channel", "AIS intermittent"]
-    },
-    {
-      id: "AL-1002",
-      ts: new Date(Date.now() - 35 * 60000).toISOString(),
-      vesselId: "VS-012",
-      vesselName: "RV Haiyang Disan",
-      threatType: "Unsanctioned EEZ Hydrographic Survey",
-      risk: 88,
-      severity: "Critical",
-      zoneName: "Gopalpur Defence Test Range",
-      status: "New",
-      lat: 18.95,
-      lng: 85.60,
-      behaviours: ["Unauthorized sonar acoustic survey inside Indian EEZ", "Gopalpur missile corridor proximity"]
-    },
-    {
-      id: "AL-1003",
-      ts: new Date(Date.now() - 55 * 60000).toISOString(),
-      vesselId: "VS-005",
-      vesselName: "SS Eastern Star",
-      threatType: "AIS Transponder Blackout & Zigzag",
-      risk: 82,
-      severity: "Critical",
-      zoneName: "Kakinada Offshore Energy Hub",
-      status: "Investigating",
-      lat: 15.92,
-      lng: 81.85,
-      behaviours: ["AIS transponder blackout", "Sudden erratic zigzag", "Unreported cargo route"]
-    },
-    {
-      id: "AL-1004",
-      ts: new Date(Date.now() - 110 * 60000).toISOString(),
-      vesselId: "VS-002",
-      vesselName: "MT Ocean Pearl",
-      threatType: "Prolonged Loitering Near SPM",
-      risk: 78,
-      severity: "High",
-      zoneName: "Paradip Strategic Approach",
-      status: "Investigating",
-      lat: 19.82,
-      lng: 86.45,
-      behaviours: ["Prolonged loitering near SPM", "Unscheduled deepwater anchorage"]
-    }
-  ],
+  // Initial placeholder state so synchronous accesses don't throw undefined errors
+  window.MS_SEED = window.MS_SEED || {
+    vessels: [],
+    zones: [],
+    alerts: [],
+    incidents: [],
+    users: [],
+    sources: [],
+    weather: {},
+    audit: [],
+    threatRules: [],
+    notifications: []
+  };
 
-  incidents: [
-    {
-      id: "INC-1001",
-      title: "Unauthorized naval submarine corridor penetration",
-      category: "Security Intrusion",
-      riskLevel: "Critical",
-      risk: 86,
-      status: "In Progress",
-      vesselName: "MV Sagar Samrat",
-      vesselId: "VS-001",
-      detectedAt: new Date(Date.now() - 35 * 60000).toISOString(),
-      assignedTo: "usr-field-1",
-      deadline: new Date(Date.now() + 45 * 60000).toISOString(),
-      lat: 17.662,
-      lng: 83.395,
-      description: "Offshore support craft navigated within 1.5 NM of Visakhapatnam submarine transit channel without coastal guard clearance.",
-      missionStatus: "On-Mission",
-      timeline: [
-        { ts: new Date(Date.now() - 35 * 60000).toISOString(), actor: "Command System", status: "Alert Raised", note: "Rule violation triggered: TR-01 Restricted Zone Entry (+35 pts)." },
-        { ts: new Date(Date.now() - 25 * 60000).toISOString(), actor: "Cdr. R. Menon", status: "Confirmed", note: "Confirmed tactical contact and authorized visual inspection." },
-        { ts: new Date(Date.now() - 15 * 60000).toISOString(), actor: "Lt. M. Barua", status: "Dispatched", note: "Fast Interceptor Craft IC-114 underway on intercept vector." }
-      ]
-    },
-    {
-      id: "INC-1002",
-      title: "Unidentified dark craft loitering near Gopalpur test corridor",
-      category: "Surveillance / Maritime Espionage",
-      riskLevel: "Critical",
-      risk: 88,
-      status: "Investigating",
-      vesselName: "RV Haiyang Disan",
-      vesselId: "VS-012",
-      detectedAt: new Date(Date.now() - 75 * 60000).toISOString(),
-      assignedTo: "usr-field-2",
-      deadline: new Date(Date.now() + 90 * 60000).toISOString(),
-      lat: 18.95,
-      lng: 85.60,
-      description: "Survey contact transmitting intermittent AIS while deploying underwater towed sonar arrays within missile test hazard perimeter.",
-      missionStatus: "On-Mission",
-      timeline: [
-        { ts: new Date(Date.now() - 75 * 60000).toISOString(), actor: "CSCR Coastal Radar", status: "Detected", note: "Radar trace established; Doppler signature indicates survey gear deployment." },
-        { ts: new Date(Date.now() - 50 * 60000).toISOString(), actor: "Cdr. R. Menon", status: "Assigned", note: "Mission dispatched to Officer K. Das (Paradip Station IC-88)." }
-      ]
-    }
-  ],
-
-  users: [
-    { id: "usr-admin-1", username: "admin", password: "admin123", name: "Dr. Arvind Rao", role: "administrator", status: "active", region: "Visakhapatnam HQ" },
-    { id: "usr-cmd-1", username: "command", password: "command123", name: "Cdr. Rajesh Menon", role: "command", status: "active", region: "Eastern Naval Command" },
-    { id: "usr-field-1", username: "field", password: "field123", name: "Lt. Manoj Barua", role: "field", status: "active", region: "Visakhapatnam Squadron", availability: "on-mission", lat: 17.68, lng: 83.38 },
-    { id: "usr-field-2", username: "kdas", password: "field123", name: "Officer K. Das", role: "field", status: "active", region: "Paradip Station", availability: "on-mission", lat: 20.25, lng: 86.72 },
-    { id: "usr-field-3", username: "sneha", password: "field123", name: "Lt. Sneha Roy", role: "field", status: "active", region: "Chennai Base", availability: "available", lat: 13.12, lng: 80.32 }
-  ],
-
-  sources: [
-    { id: "SRC-01", name: "National Coastal AIS Network (DGLL)", kind: "AIS Feed", status: "connected", lastSync: new Date().toISOString() },
-    { id: "SRC-02", name: "Chain of Static Coastal Radars (CSCR Phase II)", kind: "Radar Feed", status: "connected", lastSync: new Date().toISOString() },
-    { id: "SRC-03", name: "Sentinel-2 SAR / RISAT Tasking Pipeline", kind: "Satellite Imagery", status: "connected", lastSync: new Date().toISOString() },
-    { id: "SRC-04", name: "INCOIS High-Resolution Marine Hydrography", kind: "Weather Telemetry", status: "connected", lastSync: new Date().toISOString() }
-  ],
-
-  weather: {
-    windKts: 18,
-    windDir: "NE",
-    waveM: 2.1,
-    visibilityKm: 8.5,
-    seaState: "Moderate (Sea State 4)",
-    advisory: "Squall warning active for North-East quadrant. Small craft advisory.",
-    updatedAt: new Date().toISOString()
-  },
-
-  audit: [
-    { id: "AUD-01", ts: new Date(Date.now() - 3 * 60000).toISOString(), user: "command", module: "Threat Intelligence", action: "Inspected telemetry & threat profile for MV Sagar Samrat (VS-001)", status: "success" },
-    { id: "AUD-02", ts: new Date(Date.now() - 16 * 60000).toISOString(), user: "command", module: "Alerts", action: "Dispatched Interceptor IC-114 for restricted zone intrusion INC-1001", status: "success" },
-    { id: "AUD-03", ts: new Date(Date.now() - 42 * 60000).toISOString(), user: "admin", module: "Security Zones", action: "Validated geofence boundaries for Visakhapatnam Naval Anchorage", status: "success" }
-  ],
-
-  threatRules: [
-    { id: "TR-01", name: "Restricted Zone Entry", weight: 35, description: "Vessel inside naval or strategic anchorage without transponder broadcast", status: "active" },
-    { id: "TR-02", name: "AIS Transponder Blackout", weight: 30, description: "AIS signal lost for more than 30 minutes in monitored coastal corridor", status: "active" },
-    { id: "TR-03", name: "Prolonged Loitering", weight: 20, description: "Speed < 1.5 kts near critical infrastructure or single-point mooring", status: "active" },
-    { id: "TR-04", name: "Erratic Zigzag Route", weight: 15, description: "Course deviations exceeding 45 degrees in designated shipping lane", status: "active" }
-  ],
-
-  notifications: [
-    {
-      id: "NOTIF-101",
-      title: "Critical Threat: Submarine Corridor Penetration",
-      message: "MV Sagar Samrat violated Visakhapatnam Naval Anchorage (Threat Score: 86/100).",
-      type: "threat",
-      severity: "critical",
-      vesselId: "VS-001",
-      incidentId: "INC-1001",
-      read: false,
-      ts: new Date(Date.now() - 5 * 60000).toISOString()
-    },
-    {
-      id: "NOTIF-102",
-      title: "Field Unit Dispatched — IC-114",
-      message: "Command dispatched Lt. Manoj Barua to intercept target contact MV Sagar Samrat.",
-      type: "mission",
-      severity: "high",
-      vesselId: "VS-001",
-      incidentId: "INC-1001",
-      read: false,
-      ts: new Date(Date.now() - 15 * 60000).toISOString()
-    },
-    {
-      id: "NOTIF-103",
-      title: "Hydrographic Survey Breach Alert",
-      message: "RV Haiyang Disan detected deploying unauthorized sonar in Gopalpur Defence Range.",
-      type: "threat",
-      severity: "critical",
-      vesselId: "VS-012",
-      incidentId: "INC-1002",
-      read: false,
-      ts: new Date(Date.now() - 35 * 60000).toISOString()
-    },
-    {
-      id: "NOTIF-104",
-      title: "Radar Network Synchronized",
-      message: "Chain of Static Coastal Radars (CSCR Phase II) telemetry link verified across 5 sectors.",
-      type: "system",
-      severity: "info",
-      read: true,
-      ts: new Date(Date.now() - 60 * 60000).toISOString()
-    }
-  ]
-};
+  window.MS_DATA = MS_DATA;
+  window.loadData = loadData;
+})();

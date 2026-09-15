@@ -206,7 +206,7 @@ window.MS_MAP = (function () {
           fillColor: "#0284c7",
           fillOpacity: 0.04
         });
-        radarCircle.bindTooltip(`<strong>${st.name}</strong><br><span style="font-size:10px;">Operational CSCR Range: ${st.rangeKm} km</span>`, {
+        radarCircle.bindTooltip(`<strong>${st.name}</strong><br><span style="font-size:12px;">Operational CSCR Range: ${st.rangeKm} km</span>`, {
           direction: "top"
         });
         radarCircle.addTo(radarLayer);
@@ -244,7 +244,7 @@ window.MS_MAP = (function () {
           });
 
           circle.bindTooltip(
-            `<strong>${z.name}</strong><br><span style="text-transform:uppercase;font-size:10px;color:${color};font-weight:700;">${z.classification} Geofence · ${z.radiusKm} km radius</span>`,
+            `<strong>${z.name}</strong><br><span style="text-transform:uppercase;font-size:12px;color:${color};font-weight:700;">${z.classification} Geofence · ${z.radiusKm} km radius</span>`,
             { direction: "top", sticky: true }
           );
 
@@ -271,7 +271,7 @@ window.MS_MAP = (function () {
             dashArray: "5, 5"
           });
           circle.bindTooltip(
-            `<strong>⚠️ High Risk Sector: ${hra.name}</strong><br><span style="text-transform:uppercase;font-size:10px;color:#f43f5e;font-weight:700;">${hra.threatLevel} · ${hra.radiusKm} km radius</span><br><span style="font-size:10px;color:#64748b;">${hra.description}</span>`,
+            `<strong>⚠️ High Risk Sector: ${hra.name}</strong><br><span style="text-transform:uppercase;font-size:12px;color:#f43f5e;font-weight:700;">${hra.threatLevel} · ${hra.radiusKm} km radius</span><br><span style="font-size:12px;color:#64748b;">${hra.description}</span>`,
             { direction: "top", sticky: true }
           );
           circle.addTo(hraLayer);
@@ -366,29 +366,29 @@ window.MS_MAP = (function () {
 
           // Interactive Popup displaying: Vessel details, Threat type, Reasons list
           const popupHtml = `
-            <div class="ms-tactical-popup" style="font-family:Inter,sans-serif; min-width:280px; max-width:340px; padding:2px;">
+            <div class="ms-tactical-popup" style="font-family:Inter,sans-serif; min-width:300px; max-width:360px; padding:2px;">
               <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid #e2e8f0; padding-bottom:6px; margin-bottom:8px;">
                 <div>
-                  <div style="font-weight:800; font-size:14px; color:#0f172a;">${v.name || v.vesselId}</div>
-                  <div style="font-size:10px; color:#64748b; font-family:'JetBrains Mono',monospace;">ID: ${v.vesselId || v.id} · MMSI: ${v.mmsi || 'N/A'}</div>
+                  <div style="font-weight:800; font-size:16px; color:#0f172a;">${v.name || v.vesselId}</div>
+                  <div style="font-size:12px; color:#64748b; font-family:'JetBrains Mono',monospace;">ID: ${v.vesselId || v.id} · MMSI: ${v.mmsi || 'N/A'}</div>
                 </div>
-                <span class="badge" style="font-size:11px; background:${color}; color:#ffffff; font-weight:700;">
+                <span class="badge" style="font-size:13px; background:${color}; color:#ffffff; font-weight:700;">
                   ${v.level || (score > 70 ? 'HIGH' : score > 30 ? 'MEDIUM' : 'LOW')} (${score}/100)
                 </span>
               </div>
 
               <!-- Threat Classification Badge -->
               <div style="margin-bottom:8px; padding:6px 8px; border-radius:6px; background:${isCritical ? '#fef2f2' : isMedium ? '#fefce8' : '#f0fdf4'}; border:1px solid ${isCritical ? '#fecaca' : isMedium ? '#fef08a' : '#bbf7d0'};">
-                <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:${isCritical ? '#991b1b' : isMedium ? '#854d0e' : '#166534'};">
+                <div style="font-size:12px; font-weight:700; text-transform:uppercase; color:${isCritical ? '#991b1b' : isMedium ? '#854d0e' : '#166534'};">
                   Predicted Threat Type
                 </div>
-                <div style="font-size:13px; font-weight:800; color:${isCritical ? '#dc2626' : isMedium ? '#ca8a04' : '#15803d'};">
+                <div style="font-size:15px; font-weight:800; color:${isCritical ? '#dc2626' : isMedium ? '#ca8a04' : '#15803d'};">
                   ${threatType}
                 </div>
               </div>
 
               <!-- Vessel Details -->
-              <div style="font-size:11px; display:grid; grid-template-columns:1fr 1fr; gap:4px 8px; margin-bottom:8px;">
+              <div style="font-size:13px; display:grid; grid-template-columns:1fr 1fr; gap:4px 8px; margin-bottom:8px;">
                 <div><span style="color:#64748b;">Speed:</span> <strong>${v.speed} kts</strong></div>
                 <div><span style="color:#64748b;">Heading:</span> <strong>${heading}°</strong></div>
                 <div><span style="color:#64748b;">Coordinates:</span> <strong>${v.lat}, ${v.lng}</strong></div>
@@ -399,7 +399,7 @@ window.MS_MAP = (function () {
 
               <!-- Reasons List -->
               <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px 8px; margin-bottom:8px;">
-                <div style="font-size:10px; font-weight:800; text-transform:uppercase; color:#475569; margin-bottom:4px;">
+                <div style="font-size:12px; font-weight:800; text-transform:uppercase; color:#475569; margin-bottom:4px;">
                   Threat Reasoning (${reasonsList.length})
                 </div>
                 ${
@@ -407,13 +407,13 @@ window.MS_MAP = (function () {
                     ? reasonsList
                         .map(
                           (r) => `
-                        <div style="font-size:11px; color:#b91c1c; display:flex; align-items:center; gap:4px; margin-bottom:2px;">
+                        <div style="font-size:13px; color:#b91c1c; display:flex; align-items:center; gap:4px; margin-bottom:2px;">
                           <span>⚠️</span> <span>${r}</span>
                         </div>
                       `
                         )
                         .join("")
-                    : `<div style="font-size:11px; color:#16a34a;">✓ Standard transit criteria met</div>`
+                    : `<div style="font-size:13px; color:#16a34a;">✓ Standard transit criteria met</div>`
                 }
               </div>
 
@@ -717,20 +717,20 @@ window.MS_MAP = (function () {
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
           <div>
             <div style="display:flex; align-items:center; gap:8px;">
-              <h2 style="font-size:18px; font-weight:800; color:var(--text-main); margin:0;">${v.name}</h2>
+              <h2 style="font-size:22px; font-weight:800; color:var(--text-main); margin:0;">${v.name}</h2>
               <span class="badge ${isCritical ? 'badge-critical' : isHigh ? 'badge-danger' : effectiveRisk >= 40 ? 'badge-warn' : 'badge-ok'}">
                 ${getRiskLabel({ level: isCritical ? 'HIGH' : isHigh ? 'HIGH' : effectiveRisk >= 40 ? 'MEDIUM' : 'LOW', threatType: effectiveThreatType, risk: effectiveRisk })}
               </span>
             </div>
-            <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">
+            <p style="font-size:14px; color:var(--text-muted); margin-top:4px;">
               ${v.type} · Flag: <strong>${v.flag}</strong> · Callsign: <strong class="mono">${v.callsign || 'N/A'}</strong>
             </p>
           </div>
           <div style="text-align:right;">
-            <div style="font-size:24px; font-weight:900; color:${getRiskColor(effectiveRisk)}; font-family:'JetBrains Mono',monospace;">
-              ${effectiveRisk}<span style="font-size:14px; font-weight:600; color:var(--text-muted);">/100</span>
+            <div style="font-size:28px; font-weight:900; color:${getRiskColor(effectiveRisk)}; font-family:'JetBrains Mono',monospace;">
+              ${effectiveRisk}<span style="font-size:16px; font-weight:600; color:var(--text-muted);">/100</span>
             </div>
-            <span style="font-size:10px; text-transform:uppercase; color:var(--text-muted); font-weight:700;">Threat Score</span>
+            <span style="font-size:12px; text-transform:uppercase; color:var(--text-muted); font-weight:700;">Threat Score</span>
           </div>
         </div>
 
@@ -742,21 +742,21 @@ window.MS_MAP = (function () {
       <!-- Telemetry Matrix -->
       <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:16px;">
         <div style="background:var(--bg-card-subtle); padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-color);">
-          <span style="font-size:10px; text-transform:uppercase; color:var(--text-muted); font-weight:700;">MMSI / IMO</span>
-          <div class="mono" style="font-size:13px; font-weight:700; margin-top:2px;">${v.mmsi}</div>
-          <div style="font-size:10px; color:var(--text-muted);">IMO: ${v.imo || 'N/A'}</div>
+          <span style="font-size:12px; text-transform:uppercase; color:var(--text-muted); font-weight:700;">MMSI / IMO</span>
+          <div class="mono" style="font-size:15px; font-weight:700; margin-top:2px;">${v.mmsi}</div>
+          <div style="font-size:12px; color:var(--text-muted);">IMO: ${v.imo || 'N/A'}</div>
         </div>
 
         <div style="background:var(--bg-card-subtle); padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-color);">
-          <span style="font-size:10px; text-transform:uppercase; color:var(--text-muted); font-weight:700;">Speed &amp; Heading</span>
-          <div class="mono" style="font-size:13px; font-weight:700; margin-top:2px;">${v.speed} kts</div>
-          <div style="font-size:10px; color:var(--text-muted);">${v.course}° Course Over Ground</div>
+          <span style="font-size:12px; text-transform:uppercase; color:var(--text-muted); font-weight:700;">Speed &amp; Heading</span>
+          <div class="mono" style="font-size:15px; font-weight:700; margin-top:2px;">${v.speed} kts</div>
+          <div style="font-size:12px; color:var(--text-muted);">${v.course}° Course Over Ground</div>
         </div>
 
         <div style="background:var(--bg-card-subtle); padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-color);">
-          <span style="font-size:10px; text-transform:uppercase; color:var(--text-muted); font-weight:700;">Coordinates</span>
-          <div class="mono" style="font-size:12px; font-weight:700; margin-top:2px;">${v.lat}°N, ${v.lng}°E</div>
-          <div style="font-size:10px; color:var(--text-muted);">Bay of Bengal Grid</div>
+          <span style="font-size:12px; text-transform:uppercase; color:var(--text-muted); font-weight:700;">Coordinates</span>
+          <div class="mono" style="font-size:14px; font-weight:700; margin-top:2px;">${v.lat}°N, ${v.lng}°E</div>
+          <div style="font-size:12px; color:var(--text-muted);">Bay of Bengal Grid</div>
         </div>
       </div>
 
