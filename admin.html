@@ -142,8 +142,10 @@
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/services/ruleEngine.js"></script>
   <script src="js/services/riskEngine.js"></script>
   <script src="js/services/threatEngine.js"></script>
+  <script src="js/services/fusionService.js"></script>
   <script src="js/store.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/map.js"></script>
@@ -400,25 +402,27 @@
                       <th>MMSI</th>
                       <th>Flag / Type</th>
                       <th>Speed / Course</th>
-                      <th>Threat Risk</th>
+                      <th>ML Model Risk Score</th>
                       <th>AIS Status</th>
                       <th style="text-align:right;">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    ${s.vessels.map(v => `
+                    ${s.vessels.map(v => {
+                      const score = typeof v.riskScore === "number" ? v.riskScore : (v.risk ?? 0);
+                      return `
                       <tr>
                         <td><strong style="cursor:pointer; color:var(--primary);" onclick="window.openThreatDossier('${v.id}')">${v.name}</strong></td>
                         <td><span class="mono">${v.mmsi}</span></td>
                         <td>${v.flag} · ${v.type}</td>
                         <td>${v.speed} kts · ${v.course}°</td>
-                        <td><span class="badge ${v.risk >= 80 ? 'badge-critical' : v.risk >= 60 ? 'badge-danger' : v.risk >= 40 ? 'badge-warn' : 'badge-ok'}">${v.risk}/100</span></td>
+                        <td><span class="badge ${score >= 80 ? 'badge-critical' : score >= 70 ? 'badge-danger' : score >= 35 ? 'badge-warn' : 'badge-ok'}">${score}/100</span></td>
                         <td><span class="badge ${v.ais === 'active' ? 'badge-ok' : v.ais === 'lost' ? 'badge-critical' : 'badge-warn'}">${v.ais}</span></td>
                         <td style="text-align:right;">
                           <button class="btn btn-secondary btn-sm" onclick="window.openThreatDossier('${v.id}')">Inspect Profile</button>
                         </td>
                       </tr>
-                    `).join("")}
+                    `;}).join("")}
                   </tbody>
                 </table>
               </div>

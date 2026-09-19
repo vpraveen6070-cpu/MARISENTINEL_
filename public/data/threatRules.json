@@ -1,51 +1,47 @@
 [
   {
     "id": "TR-01",
-    "name": "Restricted Zone Entry",
-    "weight": 25,
-    "description": "Vessel entered an active security zone or restricted perimeter",
-    "status": "active"
+    "name": "Dark Activity / Smuggling",
+    "condition": "AIS OFF + Restricted Zone",
+    "weight": 35,
+    "description": "Vessel transponder deactivated inside restricted maritime security perimeter",
+    "status": "active",
+    "role": "explanation"
   },
   {
     "id": "TR-02",
-    "name": "AIS Signal Blackout",
-    "weight": 20,
-    "description": "AIS transponder disabled or signal lost in monitored waters",
-    "status": "active"
+    "name": "Suspicious Loitering",
+    "condition": "Loitering + High Risk Area",
+    "weight": 25,
+    "description": "Vessel loitering or stationary near designated critical infrastructure or high-risk grid",
+    "status": "active",
+    "role": "explanation"
   },
   {
     "id": "TR-03",
-    "name": "Sudden Speed Variation",
-    "weight": 15,
-    "description": "Speed variation delta exceeding 30 kts",
-    "status": "active"
+    "name": "Illegal Fishing",
+    "condition": "Low Speed + Restricted Zone",
+    "weight": 20,
+    "description": "Slow speed (<5 kts) maneuvering inside marine conservation or restricted zone",
+    "status": "active",
+    "role": "explanation"
   },
   {
     "id": "TR-04",
-    "name": "High-Risk Area Proximity",
-    "weight": 10,
-    "description": "Proximity to designated high-risk maritime sector",
-    "status": "active"
+    "name": "Border Intrusion",
+    "condition": "Route Deviation + Border",
+    "weight": 25,
+    "description": "Course trajectory diverging towards International Maritime Boundary Line",
+    "status": "active",
+    "role": "explanation"
   },
   {
     "id": "TR-05",
-    "name": "Prolonged Loitering Detected",
-    "weight": 10,
-    "description": "Prolonged loitering detected in operational grid",
-    "status": "active"
-  },
-  {
-    "id": "TR-06",
-    "name": "Course Deviation",
-    "weight": 10,
-    "description": "Course deviation from designated shipping lane",
-    "status": "active"
-  },
-  {
-    "id": "TR-07",
-    "name": "Low Speed Detected",
-    "weight": 5,
-    "description": "Low vessel speed (<5 kts) detected in monitored sector",
-    "status": "active"
+    "name": "Anomalous Behavior",
+    "condition": "speedChange > 30 AND nearHighRiskArea",
+    "weight": 20,
+    "description": "Sudden extreme velocity variation exceeding operational threshold while near high-risk area",
+    "status": "active",
+    "role": "explanation"
   }
 ]

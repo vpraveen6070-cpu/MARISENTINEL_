@@ -1,44 +1,54 @@
 /**
- * MARISENTINEL — Threat Classification Engine
- * Predicts tactical threat category based on risk score and behavioral indicators.
+ * MARISENTINEL — Threat Classification Helper (Explanation & Fallback)
+ * 
+ * HYBRID AI ARCHITECTURE RULE:
+ * The primary threat type is classified by the Machine Learning (Random Forest) model.
+ * This helper provides fallback classification and heuristic tag resolution when ML
+ * is offline or during client-side hydration.
  */
 
 function classifyThreat(vessel, riskScore) {
-  if (riskScore > 70) {
-    if (vessel.aisOff && vessel.inRestrictedZone) {
-      return "Dark Activity / Smuggling";
-    }
-
-    if (vessel.inRestrictedZone && vessel.speed < 5) {
-      return "Illegal Fishing";
-    }
-
-    if (vessel.routeDeviation && vessel.nearBorder) {
-      return "Border Intrusion";
-    }
-
-    if (vessel.loitering) {
-      return "Suspicious Loitering";
-    }
-
-    // Default high-risk categorization
-    return "High Threat Intrusion";
+  // If vessel already has an authoritative ML prediction, preserve it
+  if (vessel && vessel.mlPrediction && vessel.mlPrediction.threatType) {
+    return vessel.mlPrediction.threatType;
+  }
+  if (vessel && vessel.threatType && vessel.threatType !== "Normal" && vessel.threatType !== "Normal Transit") {
+    return vessel.threatType;
   }
 
-  if (riskScore > 30) {
-    if (vessel.speedChange > 40) {
-      return "Anomalous Behavior";
-    }
-    if (vessel.nearHighRiskArea) {
-      return "High Risk Transit";
-    }
-    if (vessel.aisOff) {
-      return "AIS Blackout";
-    }
+  // Fallback heuristic explanation logic
+  const v = vessel || {};
+  const score = typeof riskScore === "number" ? riskScore : (v.riskScore ?? v.risk ?? 0);
+
+  if (v.aisOff && v.inRestrictedZone) {
+    return "Dark Activity / Smuggling";
+  }
+  if (v.loitering && v.nearHighRiskArea) {
+    return "Suspicious Loitering";
+  }
+  if (v.inRestrictedZone && (v.speed < 5 || v.speed === 0)) {
+    return "Illegal Fishing";
+  }
+  if (v.routeDeviation && v.nearBorder) {
+    return "Border Intrusion";
+  }
+  if (v.speedChange > 30) {
+    return "Anomalous Behavior";
+  }
+  if (v.nearHighRiskArea) {
+    return "High Risk Transit";
+  }
+  if (v.aisOff || v.ais === "lost") {
+    return "AIS Blackout";
+  }
+  if (score > 70) {
+    return "Elevated Threat Intrusion";
+  }
+  if (score > 30) {
     return "Elevated Caution";
   }
 
-  return "Normal";
+  return "Normal Transit";
 }
 
 // Attach to window for standard browser script execution

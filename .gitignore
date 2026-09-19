@@ -24,9 +24,12 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+.venv/
+env/
+venv/
+

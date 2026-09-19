@@ -6,10 +6,10 @@
     "vesselName": "FV Siam Pearl",
     "threatType": "Dark Activity / Smuggling",
     "severity": "Critical",
-    "risk": 80,
+    "risk": 88,
     "lat": 11.2,
     "lng": 93.8,
-    "zoneName": "Andaman Sea Sector (11.20°N, 93.80°E)",
+    "zoneName": "Andaman Sea Sector (11.20\u00b0N, 93.80\u00b0E)",
     "status": "New",
     "behaviours": [
       "Restricted zone breach",
@@ -18,7 +18,8 @@
       "Sudden course change",
       "Prolonged loitering detected",
       "Low speed detected"
-    ]
+    ],
+    "level": "HIGH"
   },
   {
     "id": "AL-802",
@@ -27,10 +28,10 @@
     "vesselName": "RV Haiyang Disan",
     "threatType": "Dark Activity / Smuggling",
     "severity": "Critical",
-    "risk": 80,
+    "risk": 88,
     "lat": 19.12,
     "lng": 85.22,
-    "zoneName": "Gopalpur Defence Perimeter (19.12°N, 85.22°E)",
+    "zoneName": "Gopalpur Defence Perimeter (19.12\u00b0N, 85.22\u00b0E)",
     "status": "New",
     "behaviours": [
       "Restricted zone breach",
@@ -39,19 +40,20 @@
       "Sudden course change",
       "Prolonged loitering detected",
       "Low speed detected"
-    ]
+    ],
+    "level": "HIGH"
   },
   {
     "id": "AL-803",
     "ts": "2026-09-15T01:45:00.000Z",
     "vesselId": "UNK-SM301",
     "vesselName": "Target Echo IC-91 (Dark Craft)",
-    "threatType": "High Risk Transit",
+    "threatType": "Dark Activity / Smuggling",
     "severity": "Critical",
-    "risk": 75,
+    "risk": 84,
     "lat": 9.72,
     "lng": 79.88,
-    "zoneName": "Point Calimere Sector (9.72°N, 79.88°E)",
+    "zoneName": "Point Calimere Sector (9.72\u00b0N, 79.88\u00b0E)",
     "status": "New",
     "behaviours": [
       "Restricted zone breach",
@@ -59,19 +61,20 @@
       "Near high-risk zone",
       "Sudden course change",
       "Proximity to maritime boundary / IMBL"
-    ]
+    ],
+    "level": "HIGH"
   },
   {
     "id": "AL-804",
     "ts": "2026-09-15T01:30:00.000Z",
     "vesselId": "UNK-DK008",
     "vesselName": "FV Jal Deep (Dark Craft)",
-    "threatType": "High Risk Transit",
-    "severity": "Critical",
-    "risk": 75,
+    "threatType": "Suspicious Loitering",
+    "severity": "High",
+    "risk": 79,
     "lat": 21.02,
     "lng": 89.18,
-    "zoneName": "IMBL Sector 4 (21.02°N, 89.18°E)",
+    "zoneName": "IMBL Sector 4 (21.02\u00b0N, 89.18\u00b0E)",
     "status": "New",
     "behaviours": [
       "Restricted zone breach",
@@ -79,61 +82,27 @@
       "Near high-risk zone",
       "Sudden course change",
       "Proximity to maritime boundary / IMBL"
-    ]
+    ],
+    "level": "HIGH"
   },
   {
     "id": "AL-805",
     "ts": "2026-09-15T01:15:00.000Z",
     "vesselId": "UNK-DRK09",
     "vesselName": "Unknown Radar Track R-77",
-    "threatType": "High Risk Transit",
+    "threatType": "Dark Activity / Smuggling",
     "severity": "Critical",
-    "risk": 75,
+    "risk": 86,
     "lat": 16.7,
     "lng": 82.55,
-    "zoneName": "Kakinada Shoals (16.70°N, 82.55°E)",
+    "zoneName": "Kakinada Shoals (16.70\u00b0N, 82.55\u00b0E)",
     "status": "New",
     "behaviours": [
       "Restricted zone breach",
       "AIS transponder blackout",
       "Near high-risk zone",
       "Sudden course change"
-    ]
-  },
-  {
-    "id": "AL-806",
-    "ts": "2026-09-15T01:00:00.000Z",
-    "vesselId": "MMR-FS019",
-    "vesselName": "FV Shwe Nagar",
-    "threatType": "High Risk Transit",
-    "severity": "High",
-    "risk": 45,
-    "lat": 14.12,
-    "lng": 93.45,
-    "zoneName": "Coco Channel Sector (14.12°N, 93.45°E)",
-    "status": "New",
-    "behaviours": [
-      "Near high-risk zone",
-      "Sudden course change",
-      "Low speed detected",
-      "Proximity to maritime boundary / IMBL"
-    ]
-  },
-  {
-    "id": "AL-807",
-    "ts": "2026-09-15T00:45:00.000Z",
-    "vesselId": "PAN-TK911",
-    "vesselName": "MT Pacific Glory",
-    "threatType": "Suspicious Loitering",
-    "severity": "Medium",
-    "risk": 40,
-    "lat": 19.65,
-    "lng": 86.6,
-    "zoneName": "Paradip Deepwater Anchorage (19.65°N, 86.60°E)",
-    "status": "New",
-    "behaviours": [
-      "Near high-risk zone",
-      "Prolonged loitering detected"
-    ]
+    ],
+    "level": "HIGH"
   }
 ]

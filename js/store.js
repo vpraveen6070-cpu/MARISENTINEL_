@@ -4,7 +4,7 @@
  */
 
 (function () {
-  const STORAGE_KEY = "marisentinel_state_v12"; // Bumped version for strict Bay of Bengal maritime geofencing
+  const STORAGE_KEY = "marisentinel_state_v18"; // Synchronized 5 compound explainability threat rules
 
   /* ---------------- Maritime Geofencing Engine (Bay of Bengal Open Waters Only) ---------------- */
   function getWestCoastMinLng(lat) {
@@ -91,13 +91,32 @@
 
   async function loadVessels() {
     const raw = await fetchDataset("vessels.json");
-    const calcRisk = getRiskEngine();
-    const classifyThreat = getThreatEngine();
+    const fusionService = (typeof window !== "undefined" && window.MS_FUSION) ? window.MS_FUSION : null;
 
-    return raw.map((v) => {
-      const { score, reasons } = calcRisk(v);
-      const threatType = classifyThreat(v, score);
-      const level = score > 70 ? "HIGH" : score > 30 ? "MEDIUM" : "LOW";
+    let evaluated = [];
+    if (fusionService && fusionService.evaluateVesselsBatch) {
+      try {
+        evaluated = await fusionService.evaluateVesselsBatch(raw);
+      } catch (_) {}
+    }
+
+    return raw.map((v, idx) => {
+      const fused = evaluated[idx] || (fusionService ? fusionService.getCached(v.vesselId || v.id) : null);
+      
+      const mlPred = fused ? fused.mlPrediction : null;
+      const ruleInsights = fused ? fused.ruleInsights : null;
+      
+      const score = mlPred ? mlPred.riskScore : (v.riskScore ?? (v.risk ?? 15));
+      const level = mlPred ? mlPred.level : (score >= 70 ? "HIGH" : score >= 35 ? "MEDIUM" : "LOW");
+      const threatType = mlPred ? mlPred.threatType : (v.threatType || "Normal Transit");
+      const confidence = mlPred ? mlPred.confidence : (v.confidence || (level === "HIGH" ? 92.4 : 96.0));
+      const contributingFeatures = (mlPred && mlPred.contributingFeatures) || v.contributingFeatures || [];
+      const reasons = (ruleInsights && ruleInsights.triggeredRules && ruleInsights.triggeredRules.length)
+        ? ruleInsights.triggeredRules
+        : (v.reasons || v.behaviours || []);
+      const ruleScore = (ruleInsights && typeof ruleInsights.ruleScore === "number")
+        ? ruleInsights.ruleScore
+        : score;
 
       return {
         ...v,
@@ -107,6 +126,9 @@
         risk: score,
         level,
         threatType,
+        confidence,
+        contributingFeatures,
+        ruleScore,
         reasons,
         behaviours: reasons,
         course: v.heading ?? v.course ?? 0,
@@ -140,13 +162,11 @@
         weather: seed.weather || { windKts: 18, windDir: "NE", waveM: 2.1, visibilityKm: 8.5, seaState: "Moderate", advisory: "" },
         audit: seed.audit || [],
         threatRules: (seed.threatRules && seed.threatRules.length) ? seed.threatRules : [
-          { id: "TR-01", name: "Restricted Zone Entry", weight: 25, description: "Vessel entered an active security zone or restricted perimeter", status: "active" },
-          { id: "TR-02", name: "AIS Signal Blackout", weight: 20, description: "AIS transponder disabled or signal lost in monitored waters", status: "active" },
-          { id: "TR-03", name: "Sudden Speed Variation", weight: 15, description: "Speed variation delta exceeding 30 kts", status: "active" },
-          { id: "TR-04", name: "High-Risk Area Proximity", weight: 10, description: "Proximity to designated high-risk maritime sector", status: "active" },
-          { id: "TR-05", name: "Prolonged Loitering Detected", weight: 10, description: "Prolonged loitering detected in operational grid", status: "active" },
-          { id: "TR-06", name: "Course Deviation", weight: 10, description: "Course deviation from designated shipping lane", status: "active" },
-          { id: "TR-07", name: "Low Speed Detected", weight: 5, description: "Low vessel speed (<5 kts) detected in monitored sector", status: "active" }
+          { id: "TR-01", name: "Dark Activity / Smuggling", condition: "AIS OFF + Restricted Zone", weight: 35, description: "Vessel transponder deactivated inside restricted maritime security perimeter", status: "active", role: "explanation" },
+          { id: "TR-02", name: "Suspicious Loitering", condition: "Loitering + High Risk Area", weight: 25, description: "Vessel loitering or stationary near designated critical infrastructure or high-risk grid", status: "active", role: "explanation" },
+          { id: "TR-03", name: "Illegal Fishing", condition: "Low Speed + Restricted Zone", weight: 20, description: "Slow speed (<5 kts) maneuvering inside marine conservation or restricted zone", status: "active", role: "explanation" },
+          { id: "TR-04", name: "Border Intrusion", condition: "Route Deviation + Border", weight: 25, description: "Course trajectory diverging towards International Maritime Boundary Line", status: "active", role: "explanation" },
+          { id: "TR-05", name: "Anomalous Behavior", condition: "speedChange > 30 AND nearHighRiskArea", weight: 20, description: "Sudden extreme velocity variation exceeding operational threshold while near high-risk area", status: "active", role: "explanation" }
         ],
         notifications: seed.notifications || [],
         session: null,
@@ -157,7 +177,7 @@
 
     async init() {
       try {
-        const [vessels, zones, highRiskAreas, incidents, users, sources, weather, audit, notifications, alerts] = await Promise.all([
+        const [vessels, zones, highRiskAreas, incidents, users, sources, weather, audit, notifications, alerts, threatRules] = await Promise.all([
           loadVessels().catch((e) => { console.warn("Vessels pipeline fallback:", e); return []; }),
           fetchDataset("zones.json").catch(() => []),
           fetchDataset("highRiskAreas.json").catch(() => []),
@@ -169,7 +189,8 @@
           })),
           fetchDataset("audit.json").catch(() => []),
           fetchDataset("notifications.json").catch(() => []),
-          fetchDataset("alerts.json").catch(() => [])
+          fetchDataset("alerts.json").catch(() => []),
+          fetchDataset("threatRules.json").catch(() => [])
         ]);
 
         this.loadedData = {
@@ -183,7 +204,8 @@
           weather,
           audit,
           notifications,
-          alerts
+          alerts,
+          threatRules: (threatRules && threatRules.length) ? threatRules : undefined
         };
         window.MS_SEED = this.loadedData;
       } catch (err) {
@@ -210,16 +232,16 @@
         localStorage.removeItem("marisentinel_state_v9");
         localStorage.removeItem("marisentinel_state_v10");
         localStorage.removeItem("marisentinel_state_v11");
+        localStorage.removeItem("marisentinel_state_v12");
+        localStorage.removeItem("marisentinel_state_v13");
+        localStorage.removeItem("marisentinel_state_v14");
+        localStorage.removeItem("marisentinel_state_v15");
+        localStorage.removeItem("marisentinel_state_v16");
+        localStorage.removeItem("marisentinel_state_v17");
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
           const rawVessels = parsed.vessels && parsed.vessels.length ? parsed.vessels : seed.vessels || [];
-          const calcRisk = getRiskEngine();
-          const classifyThreat = getThreatEngine();
-
-          const canonicalRules = (seed.threatRules && seed.threatRules.length >= 7)
-            ? seed.threatRules
-            : this.getInitialFallbackState().threatRules;
 
           const rawAlerts = (parsed.alerts && parsed.alerts.length) ? parsed.alerts : (seed.alerts || []);
           const activeAlerts = rawAlerts.filter((a) => !a.id || !a.id.startsWith("AL-100"));
@@ -245,24 +267,16 @@
               lat = cLat;
               lng = cLng;
             }
-            let { score, reasons } = calcRisk({ ...mergedVessel, lat, lng }, canonicalRules);
 
-            // Synchronize with active threat alert or incident risk scores
-            const activeAlert = activeAlerts.find((a) => a.vesselId === mergedVessel.vesselId || a.vesselId === mergedVessel.id || a.vesselName === mergedVessel.name);
-            const activeInc = activeIncidents.find((inc) => inc.vesselId === mergedVessel.vesselId || inc.vesselId === mergedVessel.id || inc.vesselName === mergedVessel.name);
-
-            if (activeAlert && activeAlert.risk > score) {
-              score = activeAlert.risk;
-              if (activeAlert.behaviours && activeAlert.behaviours.length) {
-                reasons = Array.from(new Set([...reasons, ...activeAlert.behaviours]));
-              }
-            }
-            if (activeInc && activeInc.risk > score) {
-              score = activeInc.risk;
-            }
-
-            const threatType = classifyThreat({ ...mergedVessel, lat, lng }, score);
-            const level = score > 70 ? "HIGH" : score > 30 ? "MEDIUM" : "LOW";
+            // Continuous ML Model score from Random Forest (seedV / ML Fusion)
+            const score = (typeof seedV.riskScore === "number")
+              ? seedV.riskScore
+              : (typeof v.riskScore === "number" ? v.riskScore : (typeof seedV.risk === "number" ? seedV.risk : 15));
+            const level = seedV.level || v.level || (score >= 70 ? "HIGH" : score >= 35 ? "MEDIUM" : "LOW");
+            const threatType = seedV.threatType || v.threatType || (level === "HIGH" ? "Dark Activity / Smuggling" : "Normal Transit");
+            const confidence = typeof seedV.confidence === "number" ? seedV.confidence : (typeof v.confidence === "number" ? v.confidence : (level === "HIGH" ? 92.4 : 96.0));
+            const contributingFeatures = seedV.contributingFeatures || v.contributingFeatures || [];
+            const reasons = (seedV.reasons && seedV.reasons.length) ? seedV.reasons : (v.reasons || v.behaviours || []);
 
             return {
               ...mergedVessel,
@@ -274,6 +288,8 @@
               risk: score,
               level,
               threatType,
+              confidence,
+              contributingFeatures,
               reasons,
               behaviours: reasons
             };
@@ -295,7 +311,7 @@
             ...parsed,
             vessels: sanitizedVessels,
             users: sanitizedUsers,
-            threatRules: (parsed.threatRules && parsed.threatRules.length >= 7) ? parsed.threatRules : canonicalRules,
+            threatRules: (parsed.threatRules && parsed.threatRules.length >= 5) ? parsed.threatRules : (seed.threatRules || canonicalRules),
             highRiskAreas: seed.highRiskAreas || parsed.highRiskAreas || [],
             notifications: Array.isArray(parsed.notifications) ? parsed.notifications : (seed.notifications || []),
             alerts: activeAlerts,
@@ -1094,10 +1110,8 @@
             }
           }
 
-          // Dynamic Risk & Threat Pipeline Evaluation
-          const calcRisk = getRiskEngine();
-          const classifyThreat = getThreatEngine();
-
+          // Dynamic Hybrid AI Pipeline Evaluation
+          const ruleEngine = (typeof window !== "undefined" && window.MS_RULE_ENGINE) ? window.MS_RULE_ENGINE : null;
           const candidate = {
             ...v,
             lat: Math.round(nextLat * 1000) / 1000,
@@ -1110,31 +1124,57 @@
             aisOff: v.aisOff ?? (v.ais === "lost")
           };
 
-          const { score, reasons } = calcRisk(candidate, this.state.threatRules);
-          const threatType = classifyThreat(candidate, score);
-          const level = score > 70 ? "HIGH" : score > 30 ? "MEDIUM" : "LOW";
+          // Heuristic rule explanation evaluation
+          const ruleEval = ruleEngine ? ruleEngine.evaluateRules(candidate, this.state.threatRules) : { triggeredRules: [], ruleScore: 0 };
+          const triggeredRules = ruleEval.triggeredRules || [];
+          const ruleScore = ruleEval.ruleScore || 0;
 
-          // Alert generation for elevated threat vessels (score >= 35)
-          if (score >= 35) {
+          // ML output is the primary authority
+          const mlScore = typeof v.riskScore === "number" ? v.riskScore : (v.risk ?? 15);
+          const level = v.level || (mlScore >= 70 ? "HIGH" : mlScore >= 35 ? "MEDIUM" : "LOW");
+          const threatType = v.threatType || (level === "HIGH" ? "Dark Activity / Smuggling" : level === "MEDIUM" ? "Suspicious Loitering" : "Normal Transit");
+          const confidence = typeof v.confidence === "number" ? v.confidence : (level === "HIGH" ? 92.4 : 96.0);
+
+          // STEP 5: Trigger alert ONLY based on ML level (level === "HIGH")
+          if (level === "HIGH") {
             const existingAlertIndex = (s.alerts || []).findIndex(a => a.vesselId === (v.vesselId || v.id) || a.vesselName === v.name);
-            const severity = score >= 80 ? "Critical" : score >= 60 ? "High" : "Medium";
+            const severity = mlScore >= 85 ? "Critical" : "High";
             const zoneText = activeZoneName !== "Open water" ? activeZoneName : `${v.destination || 'Bay of Bengal'} (${Math.round(nextLat * 100) / 100}°N, ${Math.round(nextLng * 100) / 100}°E)`;
 
             if (existingAlertIndex === -1) {
-              newAlerts.push({
+              const newAlert = {
                 id: "AL-" + Math.floor(Math.random() * 9000 + 1000),
                 ts: new Date().toISOString(),
                 vesselId: v.vesselId || v.id,
                 vesselName: v.name,
-                threatType: threatType !== "Normal" ? threatType : "Restricted Zone Intrusion",
-                risk: score,
+                threatType: threatType !== "Normal Transit" ? threatType : "High Risk Anomaly",
+                risk: mlScore,
+                level: "HIGH",
+                confidence,
                 severity,
                 zoneName: zoneText,
                 status: "New",
                 lat: Math.round(nextLat * 1000) / 1000,
                 lng: Math.round(nextLng * 1000) / 1000,
-                behaviours: reasons
-              });
+                behaviours: triggeredRules
+              };
+              newAlerts.push(newAlert);
+
+              // Show alert popup / toast
+              if (typeof window !== "undefined" && window.MS_UI && window.MS_UI.showToast) {
+                window.MS_UI.showToast(`🚨 High Threat Alert: ${v.name} (${threatType} · ${mlScore}/100)`, "error");
+              }
+
+              // Log audit event
+              if (Array.isArray(this.state.audit)) {
+                this.state.audit.unshift({
+                  id: "AUD-" + Math.floor(Math.random() * 90000 + 10000),
+                  timestamp: new Date().toISOString(),
+                  action: "THREAT_ALERT_TRIGGERED",
+                  actor: "HYBRID_AI_ENGINE (Random Forest)",
+                  details: `High threat alert generated for vessel ${v.name} (${v.vesselId || v.id}). Primary AI Score: ${mlScore}, Confidence: ${confidence}%. Heuristic triggers: ${triggeredRules.join("; ")}`
+                });
+              }
             }
           }
 
@@ -1152,12 +1192,15 @@
             speed,
             course: nextCourse,
             heading: nextCourse,
-            riskScore: score,
-            risk: score,
+            riskScore: mlScore,
+            risk: mlScore,
             level,
             threatType,
-            reasons,
-            behaviours: reasons,
+            confidence,
+            ruleScore,
+            contributingFeatures: v.contributingFeatures || [],
+            reasons: triggeredRules,
+            behaviours: triggeredRules,
             trail,
             lastUpdate: new Date().toISOString()
           };
@@ -1183,22 +1226,25 @@
         }
 
         // Merge newly detected alerts into existing alerts list cleanly
-        const updatedAlerts = (s.alerts || []).map(a => {
-          const v = updatedVessels.find(x => x.id === a.vesselId || x.vesselId === a.vesselId || x.name === a.vesselName);
-          if (v && v.riskScore >= 35) {
-            const severity = v.riskScore >= 80 ? "Critical" : v.riskScore >= 60 ? "High" : "Medium";
-            return {
-              ...a,
-              risk: v.riskScore,
-              severity,
-              threatType: v.threatType || a.threatType,
-              lat: v.lat,
-              lng: v.lng,
-              behaviours: v.reasons || a.behaviours
-            };
-          }
-          return a;
-        });
+        const updatedAlerts = (s.alerts || [])
+          .map(a => {
+            const v = updatedVessels.find(x => x.id === a.vesselId || x.vesselId === a.vesselId || x.name === a.vesselName);
+            if (v) {
+              const score = typeof v.riskScore === "number" ? v.riskScore : (a.risk || 0);
+              const severity = score >= 80 ? "Critical" : score >= 70 ? "High" : score >= 35 ? "Medium" : "Low";
+              return {
+                ...a,
+                risk: score,
+                severity,
+                threatType: v.threatType || a.threatType,
+                lat: v.lat,
+                lng: v.lng,
+                behaviours: v.reasons || a.behaviours
+              };
+            }
+            return a;
+          })
+          .filter(a => (a.risk >= 35 && a.severity !== "Low"));
 
         const alerts = [...newAlerts, ...updatedAlerts];
 

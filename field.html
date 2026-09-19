@@ -66,8 +66,10 @@
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/services/ruleEngine.js"></script>
   <script src="js/services/riskEngine.js"></script>
   <script src="js/services/threatEngine.js"></script>
+  <script src="js/services/fusionService.js"></script>
   <script src="js/store.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/map.js"></script>
@@ -99,7 +101,7 @@
         currentTab = tab || currentTab;
         const container = document.getElementById("field-view-container");
         const s = window.msStore.getState();
-        const me = s.users.find(u => u.id === CURRENT_OFFICER_ID) || s.users[2];
+        const me = s.users.find(u => u.id === CURRENT_OFFICER_ID) || s.users[2] || { id: CURRENT_OFFICER_ID, name: "Lt. Manoj Barua", lat: 17.68, lng: 83.38, availability: "available" };
         const meLat = me.lat || 17.68;
         const meLng = me.lng || 83.38;
         const myIncidents = s.incidents.filter(i => i.assignedTo === me.id && i.status !== "Closed");

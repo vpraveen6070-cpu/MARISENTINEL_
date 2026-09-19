@@ -294,6 +294,12 @@ window.MS_UI = (function () {
         </div>
 
         <div class="header-right">
+          <!-- Python Flask ML Server Status Badge -->
+          <div class="badge badge-ok" id="ml-server-status-badge" style="cursor:pointer;padding:4px 9px;font-size:11.5px;display:flex;align-items:center;gap:6px;" title="Connected to Python Flask ML Server (Port 5005) · Random Forest Active">
+            <span style="width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;display:inline-block;"></span>
+            <span id="ml-server-text" style="font-weight:700;">FLASK ML: ONLINE</span>
+          </div>
+
           <div class="badge badge-neutral" id="live-indicator-badge" style="cursor:pointer;padding:4px 10px;">
             <span class="ms-live-dot"></span>
             <span id="live-status-text" style="font-weight:600;margin-left:4px;">${s.simRunning ? "LIVE MONITORING" : "SIMULATION PAUSED"}</span>
@@ -455,6 +461,29 @@ window.MS_UI = (function () {
         attachNotifFilterListeners();
       }
     });
+
+    // Trigger ML server status check immediately and setup click action
+    const mlBadge = document.getElementById("ml-server-status-badge");
+    if (mlBadge) {
+      mlBadge.addEventListener("click", async () => {
+        showToast("Checking Python Flask ML server health (port 5005)...", "info");
+        await updateMlServerStatus();
+        const fusion = window.MS_FUSION;
+        if (fusion && fusion.checkBackendHealth) {
+          const res = await fusion.checkBackendHealth();
+          if (res && res.ok) {
+            showToast(`Connected to Flask ML (5005) - ${res.models?.risk_score_model?.n_estimators || 100} Trees Active`, "success");
+          } else {
+            showToast("Flask ML Server Offline on port 5005. Reconnecting...", "error");
+          }
+        }
+      });
+    }
+
+    updateMlServerStatus();
+    if (!window._mlStatusInterval) {
+      window._mlStatusInterval = setInterval(updateMlServerStatus, 6000);
+    }
   }
 
   /* ---------------- Formatting Helpers ---------------- */
@@ -580,6 +609,33 @@ window.MS_UI = (function () {
     `;
   }
 
+  /* ---------------- Real-time Python Flask ML server health monitor ---------------- */
+  async function updateMlServerStatus() {
+    const badge = document.getElementById("ml-server-status-badge");
+    const text = document.getElementById("ml-server-text");
+    if (!badge || !text) return;
+
+    const fusion = (typeof window !== "undefined" && window.MS_FUSION) ? window.MS_FUSION : null;
+    if (fusion && fusion.checkBackendHealth) {
+      const status = await fusion.checkBackendHealth();
+      if (status && status.ok) {
+        badge.className = "badge badge-ok";
+        badge.style.border = "1px solid #10b981";
+        badge.style.background = "rgba(16, 185, 129, 0.15)";
+        badge.style.color = "#10b981";
+        text.textContent = "FLASK ML: ONLINE (5005)";
+        badge.title = `Connected to Python Flask Server at ${status.endpoint || 'http://127.0.0.1:5005'} · Dual Random Forest Active`;
+      } else {
+        badge.className = "badge badge-warn";
+        badge.style.border = "1px solid #f59e0b";
+        badge.style.background = "rgba(245, 158, 11, 0.15)";
+        badge.style.color = "#f59e0b";
+        text.textContent = "FLASK ML: RECONNECTING";
+        badge.title = "Python ML server unreachable at port 5005. Engaging heuristic fallback.";
+      }
+    }
+  }
+
   return {
     showToast,
     renderAppShell,
@@ -589,6 +645,16 @@ window.MS_UI = (function () {
     renderNotificationDropdownContent,
     timeAgo,
     fmtTime,
-    getBadgeClass
+    getBadgeClass,
+    updateMlServerStatus
   };
 })();
+
+// Global initial trigger once DOM is ready
+if (typeof window !== "undefined") {
+  window.addEventListener("DOMContentLoaded", () => {
+    if (window.MS_UI && window.MS_UI.updateMlServerStatus) {
+      setTimeout(() => window.MS_UI.updateMlServerStatus(), 300);
+    }
+  });
+}

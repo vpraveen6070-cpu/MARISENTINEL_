@@ -149,8 +149,10 @@
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/services/ruleEngine.js"></script>
   <script src="js/services/riskEngine.js"></script>
   <script src="js/services/threatEngine.js"></script>
+  <script src="js/services/fusionService.js"></script>
   <script src="js/store.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/map.js"></script>
@@ -164,6 +166,360 @@
 
       let currentTab = "overview";
 
+      // =========================================================================
+      // DYNAMIC & INTERACTIVE ANALYTICS ENGINE
+      // =========================================================================
+      let analyticsMode = "threats"; // "threats" | "all"
+      let analyticsCategoryFilter = null; // category string or null
+      let analyticsHoveredCategory = null;
+
+      const THREAT_COLORS = {
+        "Dark Activity / Smuggling": "#ef4444",
+        "Border Intrusion": "#f97316",
+        "Illegal Fishing": "#eab308",
+        "Suspicious Loitering": "#0284c7",
+        "Anomalous Behavior": "#8b5cf6",
+        "Normal Transit": "#10b981",
+        "High Threat Intrusion": "#dc2626",
+        "Other / Unclassified": "#64748b"
+      };
+
+      const RISK_TIERS = [
+        { id: "low", label: "Low Risk (0–40)", color: "var(--secondary)", hex: "#10b981", min: 0, max: 40 },
+        { id: "elevated", label: "Elevated (41–60)", color: "var(--status-warn)", hex: "#f59e0b", min: 41, max: 60 },
+        { id: "high", label: "High Risk (61–80)", color: "var(--status-danger)", hex: "#f97316", min: 61, max: 80 },
+        { id: "critical", label: "Critical (81–100)", color: "var(--tertiary)", hex: "#ef4444", min: 81, max: 100 }
+      ];
+
+      function getVesselCategory(v) {
+        if (v.threatType && v.threatType !== "Normal" && v.threatType !== "Normal Transit") {
+          return v.threatType;
+        }
+        const score = v.riskScore ?? v.risk ?? 0;
+        if (score >= 80) return "Dark Activity / Smuggling";
+        if (score >= 70) return "Border Intrusion";
+        if (score >= 50) return "Suspicious Loitering";
+        if (score >= 35) return "Anomalous Behavior";
+        return "Normal Transit";
+      }
+
+      function getVesselRiskTier(v) {
+        const score = v.riskScore ?? v.risk ?? 0;
+        if (score > 80) return "critical";
+        if (score > 60) return "high";
+        if (score > 40) return "elevated";
+        return "low";
+      }
+
+      function buildDonutSvg(categories, totalCount) {
+        if (!totalCount || categories.length === 0) {
+          return `
+            <svg width="220" height="220" viewBox="0 0 220 220" style="overflow: visible;">
+              <circle cx="110" cy="110" r="75" fill="none" stroke="#334155" stroke-width="26" opacity="0.3" />
+            </svg>
+          `;
+        }
+
+        let currentOffset = 0;
+        const slicesHtml = categories.map((cat, idx) => {
+          const fraction = cat.count / totalCount;
+          const dash = Math.max(2, Math.round(fraction * 471));
+          const offset = currentOffset;
+          currentOffset += dash;
+
+          const isHovered = analyticsHoveredCategory === cat.name;
+          const isSelected = analyticsCategoryFilter === cat.name;
+          const isDimmed = (analyticsHoveredCategory && !isHovered) || (analyticsCategoryFilter && !isSelected);
+
+          const strokeWidth = isHovered ? 34 : (isSelected ? 32 : 26);
+          const strokeFilter = (isHovered || isSelected) ? `filter: drop-shadow(0 0 8px ${cat.color});` : '';
+          const opacity = isDimmed ? 0.35 : 1;
+
+          return `
+            <circle
+              id="donut-slice-${idx}"
+              class="donut-slice-item"
+              cx="110" cy="110" r="75"
+              fill="none"
+              stroke="${cat.color}"
+              stroke-width="${strokeWidth}"
+              stroke-dasharray="${dash} ${Math.max(0, 471 - dash)}"
+              stroke-dashoffset="${-offset}"
+              style="cursor: pointer; transition: stroke-width 0.2s ease, opacity 0.2s ease, filter 0.2s ease; opacity: ${opacity}; ${strokeFilter}"
+              data-category="${cat.name}"
+              onmouseenter="window.handleDonutHover('${cat.name}')"
+              onmouseleave="window.handleDonutLeave()"
+              onclick="window.toggleCategoryFilter('${cat.name}')"
+            />
+          `;
+        }).join("");
+
+        return `
+          <svg width="220" height="220" viewBox="0 0 220 220" style="overflow: visible; transform: rotate(-90deg);">
+            ${slicesHtml}
+          </svg>
+        `;
+      }
+
+      function buildDonutHud(categories, totalCount) {
+        let title = "No Threats";
+        let subtitle = "System Secure";
+        let label = "PRIMARY THREAT";
+        let color = "#10b981";
+
+        if (analyticsHoveredCategory) {
+          const hovered = categories.find(c => c.name === analyticsHoveredCategory);
+          if (hovered) {
+            label = "INSPECTING CATEGORY";
+            title = `${hovered.name} : ${hovered.pct}%`;
+            subtitle = `${hovered.count} of ${totalCount} targets`;
+            color = hovered.color;
+          }
+        } else if (analyticsCategoryFilter) {
+          const selected = categories.find(c => c.name === analyticsCategoryFilter);
+          if (selected) {
+            label = "ACTIVE FILTER";
+            title = `${selected.name} : ${selected.pct}%`;
+            subtitle = `${selected.count} targets · Click to clear`;
+            color = selected.color;
+          } else {
+            label = "ACTIVE FILTER";
+            title = analyticsCategoryFilter;
+            subtitle = "Click to clear filter";
+            color = THREAT_COLORS[analyticsCategoryFilter] || "#0284c7";
+          }
+        } else if (categories.length > 0) {
+          const primary = categories.find(c => c.name !== "Normal Transit") || categories[0];
+          label = "PRIMARY THREAT";
+          title = `${primary.name} : ${primary.pct}%`;
+          subtitle = `${primary.count} vessels detected`;
+          color = primary.color;
+        }
+
+        return `
+          <div id="analytics-donut-hud" style="background:#0f172a; border:1px solid ${color}66; color:#f8fafc; padding:8px 14px; border-radius:8px; box-shadow:0 10px 25px -5px rgba(0,0,0,0.5); font-size:14px; font-weight:600; text-align:center; min-width:145px; pointer-events:none; transition: all 0.2s ease;">
+            <div style="font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:2px;">${label}</div>
+            <div style="font-size:14px; font-weight:800; color:${color}; line-height:1.2;">${title}</div>
+            <div style="font-size:11px; color:#cbd5e1; font-weight:500; margin-top:2px;">${subtitle}</div>
+          </div>
+        `;
+      }
+
+      function buildDonutLegend(categories) {
+        if (!categories.length) return `<div style="text-align:center; font-size:13px; color:var(--text-muted); margin-top:14px;">No threat categories in current mode.</div>`;
+
+        return `
+          <div style="display:flex; justify-content:center; flex-wrap:wrap; gap:8px 14px; margin-top:14px; font-size:12px;">
+            ${categories.map(c => {
+              const isSelected = analyticsCategoryFilter === c.name;
+              const isHovered = analyticsHoveredCategory === c.name;
+              return `
+                <div
+                  onclick="window.toggleCategoryFilter('${c.name}')"
+                  onmouseenter="window.handleDonutHover('${c.name}')"
+                  onmouseleave="window.handleDonutLeave()"
+                  style="cursor:pointer; display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border-radius:6px; transition:all 0.15s ease; background:${isSelected ? 'var(--bg-card-subtle)' : isHovered ? 'var(--bg-card-subtle)' : 'transparent'}; border: 1px solid ${isSelected ? c.color : 'transparent'};"
+                  title="Click to filter by ${c.name}"
+                >
+                  <strong style="color:${c.color}; font-size:13px;">■</strong>
+                  <span style="color:${isSelected ? 'var(--text-primary)' : 'var(--text-muted)'}; font-weight:${isSelected ? '700' : '500'};">
+                    ${c.name} (${c.pct}%)
+                  </span>
+                  <span class="badge badge-neutral" style="font-size:10px; padding:1px 5px;">${c.count}</span>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        `;
+      }
+
+      function buildRiskBars(vessels) {
+        const total = vessels.length || 1;
+        return RISK_TIERS.map(tier => {
+          const count = vessels.filter(v => {
+            const score = v.riskScore ?? v.risk ?? 0;
+            return score >= tier.min && score <= tier.max;
+          }).length;
+          const pct = Math.round((count / total) * 100);
+
+          return `
+            <div style="padding:8px 12px; border-radius:8px; margin-bottom:4px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; margin-bottom:5px;">
+                <span style="font-weight:600; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+                  • ${tier.label}
+                </span>
+                <div>
+                  <strong style="color:${tier.color}; font-size:14px;">${count} vessels</strong>
+                  <span style="font-size:11px; color:var(--text-muted); margin-left:4px;">(${pct}%)</span>
+                </div>
+              </div>
+              <div class="risk-meter-bar" style="height:7px; background:rgba(255,255,255,0.06);">
+                <div class="risk-meter-fill" style="width:${pct}%; background:${tier.color};"></div>
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+
+      function renderAnalyticsContent(container, s) {
+        let targetVessels = s.vessels || [];
+        if (analyticsMode === "threats") {
+          const threats = targetVessels.filter(v => getVesselRiskTier(v) !== "low" || (v.threatType && v.threatType !== "Normal Transit" && v.threatType !== "Normal"));
+          if (threats.length > 0) {
+            targetVessels = threats;
+          }
+        }
+
+        const catMap = {};
+        targetVessels.forEach(v => {
+          const cat = getVesselCategory(v);
+          catMap[cat] = (catMap[cat] || 0) + 1;
+        });
+
+        const totalCategoryVessels = targetVessels.length || 1;
+        const categories = Object.keys(catMap).map(name => {
+          const count = catMap[name];
+          const pct = Math.round((count / totalCategoryVessels) * 100);
+          const color = THREAT_COLORS[name] || "#64748b";
+          return { name, count, pct, color };
+        }).sort((a, b) => b.count - a.count);
+
+        window._lastAnalyticsCategories = categories;
+        window._lastAnalyticsTotal = totalCategoryVessels;
+
+        container.innerHTML = `
+          <div class="section-header">
+            <div>
+              <h1 class="section-title">Analytics & Threat Forecast</h1>
+              <p class="section-subtitle">Real-time threat distributions, dynamic fleet categorization, and predictive security metrics across the Bay of Bengal.</p>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="badge ${s.simRunning ? "badge-ok" : "badge-warn"}">
+                ${s.simRunning ? "● Live Dynamic Sync" : "Sync Paused"}
+              </span>
+            </div>
+          </div>
+
+          <div class="grid-4" style="margin-bottom: 20px;">
+            <div class="metric-card">
+              <div class="metric-label">Total Incidents</div>
+              <div class="metric-value mono-num">${s.incidents.length}</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Alerts Raised (24h)</div>
+              <div class="metric-value mono-num">${s.alerts.length}</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Avg Response Time</div>
+              <div class="metric-value mono-num" style="color:var(--secondary);">18 min</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Monitored Vessels</div>
+              <div class="metric-value mono-num" style="color:var(--primary);">${(s.vessels || []).length}</div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <!-- THREAT CATEGORY DISTRIBUTION PANEL -->
+            <div class="panel">
+              <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <h2>Threat Category Distribution</h2>
+                <div style="display:flex; gap:4px; background:var(--bg-card-subtle); padding:2px; border-radius:6px; border:1px solid var(--border-color);">
+                  <button
+                    class="btn btn-sm"
+                    style="font-size:11px; padding:3px 9px; cursor:pointer; ${analyticsMode === 'threats' ? 'background:var(--primary); color:#fff; font-weight:700;' : 'background:transparent; color:var(--text-muted);'}"
+                    onclick="window.setAnalyticsMode('threats')"
+                    title="Break down only active threats"
+                  >⚡ Active Threats</button>
+                  <button
+                    class="btn btn-sm"
+                    style="font-size:11px; padding:3px 9px; cursor:pointer; ${analyticsMode === 'all' ? 'background:var(--primary); color:#fff; font-weight:700;' : 'background:transparent; color:var(--text-muted);'}"
+                    onclick="window.setAnalyticsMode('all')"
+                    title="Break down all vessels in fleet"
+                  >🌐 Entire Fleet</button>
+                </div>
+              </div>
+              <div class="panel-body" style="position: relative;">
+                <div style="display:flex; justify-content:center; align-items:center; height:240px; position:relative;">
+                  ${buildDonutSvg(categories, totalCategoryVessels)}
+                  <div id="analytics-donut-hud-container" style="position:absolute; display:flex; justify-content:center; align-items:center;">
+                    ${buildDonutHud(categories, totalCategoryVessels)}
+                  </div>
+                </div>
+
+                ${buildDonutLegend(categories)}
+              </div>
+            </div>
+
+            <!-- THREAT LEVEL DISTRIBUTION PANEL -->
+            <div class="panel">
+              <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <h2>Threat Level Distribution</h2>
+              </div>
+              <div class="panel-body" style="display:flex; flex-direction:column; justify-content:space-around; min-height: 280px;">
+                ${buildRiskBars(s.vessels || [])}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      function updateAnalyticsView(s) {
+        const container = document.getElementById("command-view-container");
+        if (!container || currentTab !== "analytics") return;
+        renderAnalyticsContent(container, s);
+      }
+
+      window.setAnalyticsMode = function(mode) {
+        analyticsMode = mode;
+        analyticsCategoryFilter = null;
+        updateAnalyticsView(window.msStore.getState());
+      };
+
+      window.toggleCategoryFilter = function(catName) {
+        if (analyticsCategoryFilter === catName) {
+          analyticsCategoryFilter = null;
+        } else {
+          analyticsCategoryFilter = catName;
+        }
+        updateAnalyticsView(window.msStore.getState());
+      };
+
+      window.handleDonutHover = function(catName) {
+        analyticsHoveredCategory = catName;
+        const hudEl = document.getElementById("analytics-donut-hud-container");
+        if (hudEl && window._lastAnalyticsCategories) {
+          hudEl.innerHTML = buildDonutHud(window._lastAnalyticsCategories, window._lastAnalyticsTotal);
+        }
+        document.querySelectorAll(".donut-slice-item").forEach(el => {
+          const cat = el.getAttribute("data-category");
+          const isTarget = (cat === catName);
+          el.style.opacity = isTarget ? "1" : "0.35";
+          el.style.strokeWidth = isTarget ? "34" : "26";
+        });
+      };
+
+      window.handleDonutLeave = function() {
+        analyticsHoveredCategory = null;
+        const hudEl = document.getElementById("analytics-donut-hud-container");
+        if (hudEl && window._lastAnalyticsCategories) {
+          hudEl.innerHTML = buildDonutHud(window._lastAnalyticsCategories, window._lastAnalyticsTotal);
+        }
+        document.querySelectorAll(".donut-slice-item").forEach(el => {
+          const cat = el.getAttribute("data-category");
+          const isSelected = (analyticsCategoryFilter === cat);
+          el.style.opacity = (analyticsCategoryFilter && !isSelected) ? "0.35" : "1";
+          el.style.strokeWidth = isSelected ? "32" : "26";
+        });
+      };
+
+      window.locateVesselOnMap = function(vesselId) {
+        renderTab("map");
+        setTimeout(() => {
+          window.openThreatDossier(vesselId);
+        }, 300);
+      };
+
       function renderTab(tab) {
         currentTab = tab || currentTab;
         const container = document.getElementById("command-view-container");
@@ -175,8 +531,8 @@
             return !isAssigned && a.status !== "Resolved" && a.status !== "False Alarm";
           });
           const critical = s.alerts.filter(a => a.severity === "Critical" && a.status !== "Resolved" && a.status !== "False Alarm");
-          const activeInc = s.incidents.filter(i => i.status !== "Closed");
-          const highRiskVessels = s.vessels.filter(v => v.risk >= 40).sort((a, b) => b.risk - a.risk);
+          const activeInc = (s.incidents || []).filter(i => i.status !== "Closed");
+          const highRiskVessels = s.vessels.filter(v => (v.riskScore ?? v.risk) >= 70).sort((a, b) => (b.riskScore ?? b.risk) - (a.riskScore ?? a.risk));
 
           container.innerHTML = `
             <div class="section-header">
@@ -253,7 +609,7 @@
                           <strong style="font-size:14px; color:var(--primary);">${v.name}</strong>
                           <span style="font-size:12px; color:var(--text-muted); display:block;">${v.type} · ${v.speed} kts</span>
                         </div>
-                        <span class="badge ${v.risk >= 80 ? 'badge-critical' : v.risk >= 60 ? 'badge-danger' : 'badge-warn'}">${v.risk}/100</span>
+                        <span class="badge ${(v.riskScore ?? v.risk) >= 80 ? 'badge-critical' : (v.riskScore ?? v.risk) >= 70 ? 'badge-danger' : (v.riskScore ?? v.risk) >= 35 ? 'badge-warn' : 'badge-ok'}">${(v.riskScore ?? v.risk)}/100</span>
                       </div>
                     `).join("")}
                   </div>
@@ -311,7 +667,6 @@
                   </thead>
                   <tbody>
                     ${(() => {
-                      const calcRisk = window.calculateRisk || (() => ({ score: 0, reasons: [] }));
                       const classifyThreat = window.classifyThreat || (() => "Elevated Threat");
                       const cleanReason = (r) => (typeof r === "string" ? r.replace(/\s*\(\+\d+\s*pts\)/gi, "").trim() : "");
                       
@@ -320,11 +675,10 @@
 
                       let combinedAlerts = rawAlerts.map(a => {
                         const v = mapVessels.find(x => x.id === a.vesselId || x.vesselId === a.vesselId || x.name === a.vesselName) || {};
-                        const fresh = v.id ? calcRisk(v, s.threatRules) : { score: 0, reasons: [] };
-                        const score = Math.max(a.risk || 0, v.riskScore ?? v.risk ?? 0, fresh.score);
-                        const threatType = a.threatType || (v.id ? classifyThreat(v, score) : "Elevated Threat");
-                        const severity = score >= 80 ? "Critical" : score >= 60 ? "High" : "Medium";
-                        const rawBehaviors = [...(a.behaviours || []), ...(v.behaviours || []), ...(v.reasons || []), ...(fresh.reasons || [])];
+                        const score = typeof v.riskScore === "number" ? v.riskScore : (a.risk || 50);
+                        const threatType = v.threatType || a.threatType || "Elevated Threat";
+                        const severity = score >= 80 ? "Critical" : score >= 70 ? "High" : score >= 35 ? "Medium" : "Low";
+                        const rawBehaviors = [...(a.behaviours || []), ...(v.behaviours || []), ...(v.reasons || [])];
                         const behaviours = Array.from(new Set(rawBehaviors.map(cleanReason).filter(Boolean)));
                         const lat = v.lat ?? a.lat ?? 15.0;
                         const lng = v.lng ?? a.lng ?? 85.0;
@@ -345,15 +699,16 @@
                         };
                       });
 
+                      // STEP 5: Add active alerts ONLY for vessels evaluated as HIGH by ML
                       mapVessels.forEach(v => {
-                        const fresh = calcRisk(v, s.threatRules);
-                        const score = Math.max(v.riskScore ?? v.risk ?? 0, fresh.score);
-                        if (score >= 35) {
+                        const mlScore = typeof v.riskScore === "number" ? v.riskScore : (v.risk ?? 0);
+                        const level = v.level || (mlScore >= 70 ? "HIGH" : mlScore >= 35 ? "MEDIUM" : "LOW");
+                        if (level === "HIGH") {
                           const exists = combinedAlerts.some(a => a.vesselId === v.id || a.vesselId === v.vesselId || a.vesselName === v.name);
                           if (!exists) {
-                            const threatType = classifyThreat(v, score);
-                            const severity = score >= 80 ? "Critical" : score >= 60 ? "High" : "Medium";
-                            const behaviours = Array.from(new Set([...(v.behaviours || []), ...(v.reasons || []), ...(fresh.reasons || [])].map(cleanReason).filter(Boolean)));
+                            const threatType = v.threatType || "High Threat Intrusion";
+                            const severity = mlScore >= 80 ? "Critical" : "High";
+                            const behaviours = Array.from(new Set([...(v.behaviours || []), ...(v.reasons || [])].map(cleanReason).filter(Boolean)));
                             combinedAlerts.push({
                               id: "AL-" + (v.id || v.vesselId),
                               ts: v.lastUpdate || new Date().toISOString(),
@@ -365,7 +720,7 @@
                               zoneName: `${v.destination || 'Bay of Bengal Sector'} (${v.lat}°N, ${v.lng}°E)`,
                               threatType,
                               severity,
-                              risk: score,
+                              risk: mlScore,
                               status: "New",
                               behaviours
                             });
@@ -373,17 +728,22 @@
                         }
                       });
 
-                      return combinedAlerts.sort((a, b) => (b.risk || 0) - (a.risk || 0)).map(a => {
+                      // Filter out non-threats (score < 35) from Active Threat Alerts table
+                      const activeThreatsOnly = combinedAlerts.filter(a => (a.risk >= 35 && a.severity !== "Low"));
+
+                      return activeThreatsOnly.sort((a, b) => (b.risk || 0) - (a.risk || 0)).map(a => {
                         const isAssigned = a.status === 'Assigned' && a.assignedTo && s.users.some(u => u.id === a.assignedTo && u.status === 'active');
                         const displayStatus = isAssigned ? 'Assigned' : (a.status === 'Assigned' ? 'New' : a.status || 'New');
+                        const sevBadgeClass = a.severity === 'Critical' ? 'badge-critical' : a.severity === 'High' ? 'badge-danger' : a.severity === 'Medium' ? 'badge-warn' : 'badge-ok';
+                        const scoreColor = a.risk >= 80 ? 'var(--tertiary)' : a.risk >= 70 ? 'var(--status-danger)' : a.risk >= 35 ? 'var(--status-warn)' : '#10b981';
                         return `
                         <tr>
                           <td><span class="mono">${window.MS_UI.fmtTime(a.ts)}</span></td>
-                          <td><span class="badge ${a.severity === 'Critical' ? 'badge-critical' : a.severity === 'High' ? 'badge-danger' : 'badge-warn'}">${a.severity}</span></td>
+                          <td><span class="badge ${sevBadgeClass}">${a.severity.toUpperCase()}</span></td>
                           <td><strong style="cursor:pointer; color:var(--primary);" onclick="window.openThreatDossier('${a.vesselId}')">${a.vesselName}</strong><br><span class="mono" style="font-size:10px; color:var(--text-muted);">${a.vesselType || ''}</span></td>
                           <td>${a.threatType}</td>
                           <td>${a.zoneName}</td>
-                          <td><strong style="color:${a.risk >= 80 ? 'var(--tertiary)' : a.risk >= 60 ? 'var(--status-danger)' : 'var(--status-warn)'};">${a.risk}/100</strong></td>
+                          <td><strong style="color:${scoreColor};">${a.risk}/100</strong></td>
                           <td>
                             ${a.behaviours && a.behaviours.length ? a.behaviours.map(b => `<span class="badge badge-danger" style="margin-right:4px; margin-bottom:2px; display:inline-block;">${b}</span>`).join("") : `<span class="badge badge-warn">Elevated Risk</span>`}
                           </td>
@@ -426,24 +786,16 @@
                       <th>Flag &amp; Type</th>
                       <th>Speed / Heading</th>
                       <th>Coordinates</th>
-                      <th>Threat Risk</th>
+                      <th>ML Model Risk Score</th>
                       <th>Rule Violations Detected</th>
                       <th style="text-align:right;">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     ${s.vessels.map(v => {
-                      const calcRisk = window.calculateRisk || (() => ({ score: 0, reasons: [] }));
-                      const freshEval = calcRisk(v, s.threatRules);
-                      const activeAlert = (s.alerts || []).find((a) => a.vesselId === v.id || a.vesselId === v.vesselId || a.vesselName === v.name);
-                      const activeInc = (s.incidents || []).find((inc) => inc.vesselId === v.id || inc.vesselId === v.vesselId || inc.vesselName === v.name);
-
-                      let score = Math.max(v.riskScore ?? v.risk ?? 0, freshEval.score);
-                      if (activeAlert && activeAlert.risk > score) score = activeAlert.risk;
-                      if (activeInc && activeInc.risk > score) score = activeInc.risk;
-
+                      const score = typeof v.riskScore === "number" ? v.riskScore : (v.risk ?? 0);
                       const cleanReason = (r) => (typeof r === "string" ? r.replace(/\s*\(\+\d+\s*pts\)/gi, "").trim() : "");
-                      const reasons = Array.from(new Set([...(v.behaviours || []), ...(v.reasons || []), ...(freshEval.reasons || [])].map(cleanReason).filter(Boolean)));
+                      const reasons = Array.from(new Set([...(v.behaviours || []), ...(v.reasons || [])].map(cleanReason).filter(Boolean)));
 
                       return `
                         <tr>
@@ -451,9 +803,9 @@
                           <td>${v.flag} · ${v.type}</td>
                           <td>${v.speed} kts · ${v.course || v.heading || 0}°</td>
                           <td><span class="mono">${v.lat}°N, ${v.lng}°E</span></td>
-                          <td><span class="badge ${score >= 80 ? 'badge-critical' : score >= 60 ? 'badge-danger' : score >= 40 ? 'badge-warn' : 'badge-ok'}">${score}/100</span></td>
+                          <td><span class="badge ${score >= 80 ? 'badge-critical' : score >= 70 ? 'badge-danger' : score >= 35 ? 'badge-warn' : 'badge-ok'}">${score}/100</span></td>
                           <td>
-                            ${reasons.length ? reasons.map(b => `<span class="badge badge-danger" style="margin-right:4px; margin-bottom:2px; display:inline-block;">${b}</span>`).join("") : `<span class="badge badge-ok">Nominal</span>`}
+                            ${reasons.length ? reasons.map(b => `<span class="badge ${score >= 70 ? 'badge-danger' : 'badge-neutral'}" style="margin-right:4px; margin-bottom:2px; display:inline-block;">${b}</span>`).join("") : `<span class="badge badge-ok">Nominal</span>`}
                           </td>
                           <td style="text-align:right;">
                             <button class="btn btn-primary btn-sm" onclick="window.openThreatDossier('${v.id}')">Threat Profile</button>
@@ -530,100 +882,7 @@
             </div>
           `;
         } else if (tab === "analytics") {
-          container.innerHTML = `
-            <div class="section-header">
-              <div>
-                <h1 class="section-title">Analytics & Threat Forecast</h1>
-                <p class="section-subtitle">Historical patterns, threat distributions, and predictive security metrics across the Bay of Bengal.</p>
-              </div>
-            </div>
-
-            <div class="grid-4" style="margin-bottom: 20px;">
-              <div class="metric-card">
-                <div class="metric-label">Total Incidents</div>
-                <div class="metric-value mono-num">${s.incidents.length}</div>
-              </div>
-              <div class="metric-card">
-                <div class="metric-label">Alerts Raised (24h)</div>
-                <div class="metric-value mono-num">${s.alerts.length}</div>
-              </div>
-              <div class="metric-card">
-                <div class="metric-label">Avg Response Time</div>
-                <div class="metric-value mono-num" style="color:var(--secondary);">18 min</div>
-              </div>
-              <div class="metric-card">
-                <div class="metric-label">Area Coverage</div>
-                <div class="metric-value mono-num" style="color:var(--primary);">98.4%</div>
-              </div>
-            </div>
-
-            <div class="grid-2">
-              <div class="panel">
-                <div class="panel-header">
-                  <h2>Threat Category Distribution</h2>
-                </div>
-                <div class="panel-body" style="position: relative;">
-                  <div style="display:flex; justify-content:center; align-items:center; height:240px; position:relative;">
-                    <svg width="200" height="200" viewBox="0 0 200 200">
-                      <circle cx="100" cy="100" r="70" fill="none" stroke="#f97316" stroke-width="32" stroke-dasharray="260 440" stroke-dashoffset="0" />
-                      <circle cx="100" cy="100" r="70" fill="none" stroke="#ef4444" stroke-width="32" stroke-dasharray="100 440" stroke-dashoffset="-260" />
-                      <circle cx="100" cy="100" r="70" fill="none" stroke="#0284c7" stroke-width="32" stroke-dasharray="80 440" stroke-dashoffset="-360" />
-                    </svg>
-
-                    <div style="position:absolute; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:8px 14px; border-radius:8px; box-shadow:var(--shadow-lg); font-size:14px; font-weight:600;">
-                      <div style="font-size:12px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:2px;">Primary Threat</div>
-                      Zone Intrusion : 55%
-                    </div>
-                  </div>
-
-                  <div style="display:flex; justify-content:center; gap:16px; margin-top:10px; font-size:13px; color:var(--text-muted);">
-                    <span><strong style="color:#f97316;">■</strong> Zone Intrusion (55%)</span>
-                    <span><strong style="color:#ef4444;">■</strong> Blackout (25%)</span>
-                    <span><strong style="color:#0284c7;">■</strong> Loitering (20%)</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="panel">
-                <div class="panel-header">
-                  <h2>Threat Level Distribution</h2>
-                </div>
-                <div class="panel-body" style="height: 280px; display:flex; flex-direction:column; justify-content:space-around;">
-                  <div>
-                    <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:4px;">
-                      <span>Low Risk (0–40)</span>
-                      <strong style="color:var(--secondary);">${s.vessels.filter(v => v.risk < 40).length} vessels</strong>
-                    </div>
-                    <div class="risk-meter-bar"><div class="risk-meter-fill" style="width:65%; background:var(--secondary);"></div></div>
-                  </div>
-
-                  <div>
-                    <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:4px;">
-                      <span>Elevated (41–60)</span>
-                      <strong style="color:var(--status-warn);">${s.vessels.filter(v => v.risk >= 40 && v.risk < 60).length} vessels</strong>
-                    </div>
-                    <div class="risk-meter-bar"><div class="risk-meter-fill" style="width:20%; background:var(--status-warn);"></div></div>
-                  </div>
-
-                  <div>
-                    <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:4px;">
-                      <span>High Risk (61–80)</span>
-                      <strong style="color:var(--status-danger);">${s.vessels.filter(v => v.risk >= 60 && v.risk < 80).length} vessels</strong>
-                    </div>
-                    <div class="risk-meter-bar"><div class="risk-meter-fill" style="width:15%; background:var(--status-danger);"></div></div>
-                  </div>
-
-                  <div>
-                    <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:4px;">
-                      <span>Critical (81–100)</span>
-                      <strong style="color:var(--tertiary);">${s.vessels.filter(v => v.risk >= 80).length} vessels</strong>
-                    </div>
-                    <div class="risk-meter-bar"><div class="risk-meter-fill" style="width:10%; background:var(--tertiary);"></div></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          `;
+          renderAnalyticsContent(container, s);
         } else if (tab === "profile") {
           container.innerHTML = window.MS_UI.getProfileHtml("command");
         }
@@ -737,7 +996,10 @@
 
       // Smooth state subscriber (prevents destroying & re-creating the map DOM on simulation ticks)
       window.msStore.subscribe((s) => {
-        // Map markers update smoothly in-place via js/map.js subscriber
+        // Dynamic analytics update
+        if (currentTab === "analytics") {
+          updateAnalyticsView(s);
+        }
       });
 
       window.MS_UI.attachLayoutEvents(renderTab);
