@@ -93,16 +93,9 @@
     const raw = await fetchDataset("vessels.json");
     const fusionService = (typeof window !== "undefined" && window.MS_FUSION) ? window.MS_FUSION : null;
 
-    let evaluated = [];
-    if (fusionService && fusionService.evaluateVesselsBatch) {
-      try {
-        evaluated = await fusionService.evaluateVesselsBatch(raw);
-      } catch (_) {}
-    }
-
-    return raw.map((v, idx) => {
-      const fused = evaluated[idx] || (fusionService ? fusionService.getCached(v.vesselId || v.id) : null);
-      
+    // Immediately map with baseline/cached data so page rendering and authentication are instant (< 50ms)
+    const initialVessels = raw.map((v) => {
+      const fused = fusionService ? fusionService.getCached(v.vesselId || v.id) : null;
       const mlPred = fused ? fused.mlPrediction : null;
       const ruleInsights = fused ? fused.ruleInsights : null;
       
@@ -138,6 +131,44 @@
         lastUpdate: new Date().toISOString()
       };
     });
+
+    // Run ML evaluation asynchronously in the background so it NEVER blocks login or page rendering
+    if (fusionService && fusionService.evaluateVesselsBatch) {
+      setTimeout(async () => {
+        try {
+          const evaluated = await fusionService.evaluateVesselsBatch(raw);
+          if (evaluated && evaluated.length && window.msStore) {
+            window.msStore.setState((s) => {
+              const currentVessels = s.vessels || [];
+              const updated = currentVessels.map((v, idx) => {
+                const fused = evaluated[idx] || (fusionService ? fusionService.getCached(v.vesselId || v.id) : null);
+                if (!fused) return v;
+                const mlPred = fused.mlPrediction;
+                const ruleInsights = fused.ruleInsights;
+                const score = mlPred ? mlPred.riskScore : v.riskScore;
+                const level = mlPred ? mlPred.level : (score >= 70 ? "HIGH" : score >= 35 ? "MEDIUM" : "LOW");
+                return {
+                  ...v,
+                  riskScore: score,
+                  risk: score,
+                  level,
+                  threatType: mlPred ? mlPred.threatType : v.threatType,
+                  confidence: mlPred ? mlPred.confidence : v.confidence,
+                  contributingFeatures: (mlPred && mlPred.contributingFeatures) || v.contributingFeatures || [],
+                  ruleScore: (ruleInsights && typeof ruleInsights.ruleScore === "number") ? ruleInsights.ruleScore : v.ruleScore,
+                  reasons: (ruleInsights && ruleInsights.triggeredRules && ruleInsights.triggeredRules.length) ? ruleInsights.triggeredRules : v.reasons
+                };
+              });
+              return { ...s, vessels: updated };
+            });
+          }
+        } catch (e) {
+          console.warn("[MsStore] Background ML sync fallback:", e);
+        }
+      }, 50);
+    }
+
+    return initialVessels;
   }
 
   class MsStore {
@@ -157,7 +188,13 @@
         highRiskAreas: seed.highRiskAreas || [],
         alerts: seed.alerts || [],
         incidents: seed.incidents || [],
-        users: seed.users || [],
+        users: (seed.users && seed.users.length) ? seed.users : [
+          { id: "usr-admin-1", username: "admin", password: "admin123", name: "Dr. Arvind Rao", role: "administrator", status: "active", region: "Visakhapatnam HQ" },
+          { id: "usr-cmd-1", username: "command", password: "command123", name: "Cdr. Rajesh Menon", role: "command", status: "active", region: "Eastern Naval Command" },
+          { id: "usr-field-1", username: "field", password: "field123", name: "Lt. Manoj Barua", role: "field", status: "active", region: "Visakhapatnam Squadron", availability: "on-mission", lat: 17.68, lng: 83.38 },
+          { id: "usr-field-2", username: "kdas", password: "field123", name: "Officer K. Das", role: "field", status: "active", region: "Paradip Station", availability: "on-mission", lat: 20.25, lng: 86.70 },
+          { id: "usr-field-3", username: "sneha", password: "field123", name: "Lt. Sneha Roy", role: "field", status: "active", region: "Chennai Base", availability: "available", lat: 13.10, lng: 80.30 }
+        ],
         sources: seed.sources || [],
         weather: seed.weather || { windKts: 18, windDir: "NE", waveM: 2.1, visibilityKm: 8.5, seaState: "Moderate", advisory: "" },
         audit: seed.audit || [],

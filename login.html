@@ -227,8 +227,15 @@
 
       (async () => {
         try {
-          await window.msStore.ready;
-          const res = window.msStore.login(username, password, role);
+          // Instant check: try to authenticate immediately if store is present
+          let res = window.msStore ? window.msStore.login(username, password, role) : { ok: false };
+
+          // If store is still initializing dataset files and account wasn't matched yet, await ready once
+          if (!res.ok && window.msStore && !window.msStore.isReady) {
+            await window.msStore.ready;
+            res = window.msStore.login(username, password, role);
+          }
+
           submitBtn.disabled = false;
           submitBtn.textContent = "Sign in";
 
