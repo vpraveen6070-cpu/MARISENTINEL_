@@ -17,6 +17,7 @@
   const customApi = (typeof window !== "undefined" && window.MARISENTINEL_API_BASE) ? window.MARISENTINEL_API_BASE : null;
   const API_CANDIDATES = [
     ...(customApi ? [customApi] : []),
+    "https://marisentinel-api.onrender.com",
     "http://127.0.0.1:5005",
     "http://localhost:5005"
   ];
