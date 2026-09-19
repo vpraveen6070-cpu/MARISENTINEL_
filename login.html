@@ -222,45 +222,25 @@
         return;
       }
 
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Authenticating…";
+      // Instant zero-delay authentication
+      const res = window.msStore ? window.msStore.login(username, password, role) : { ok: false };
 
-      (async () => {
-        try {
-          // Instant check: try to authenticate immediately if store is present
-          let res = window.msStore ? window.msStore.login(username, password, role) : { ok: false };
+      if (!res.ok) {
+        errorMsg.textContent = res.error || "Authentication failed.";
+        errorBox.style.display = "flex";
+        return;
+      }
 
-          // If store is still initializing dataset files and account wasn't matched yet, await ready once
-          if (!res.ok && window.msStore && !window.msStore.isReady) {
-            await window.msStore.ready;
-            res = window.msStore.login(username, password, role);
-          }
-
-          submitBtn.disabled = false;
-          submitBtn.textContent = "Sign in";
-
-          if (!res.ok) {
-            errorMsg.textContent = res.error || "Authentication failed.";
-            errorBox.style.display = "flex";
-            return;
-          }
-
-          window.MS_UI.showToast(`Welcome, ${res.role.toUpperCase()}`);
-
-          if (res.role === "administrator") {
-            window.location.href = "admin.html";
-          } else if (res.role === "command") {
-            window.location.href = "command.html";
-          } else if (res.role === "field") {
-            window.location.href = "field.html";
-          }
-        } catch (err) {
-          submitBtn.disabled = false;
-          submitBtn.textContent = "Sign in";
-          errorMsg.textContent = "Authentication error: " + err.message;
-          errorBox.style.display = "flex";
-        }
-      })();
+      // Take action immediately with zero wait time
+      if (res.role === "administrator") {
+        window.location.replace("admin.html");
+      } else if (res.role === "command") {
+        window.location.replace("command.html");
+      } else if (res.role === "field") {
+        window.location.replace("field.html");
+      } else {
+        window.location.replace("command.html");
+      }
     });
   </script>
 </body>

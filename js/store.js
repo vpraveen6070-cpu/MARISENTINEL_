@@ -174,7 +174,7 @@
   class MsStore {
     constructor() {
       this.listeners = new Set();
-      this.state = this.getInitialFallbackState();
+      this.state = this.loadState();
       this.timer = null;
       this.isReady = false;
       this.ready = this.init();
@@ -1081,6 +1081,9 @@
 
     /* ---------------- Live Simulation Heartbeat ---------------- */
     startSimulation() {
+      if (typeof window !== "undefined" && window.location && window.location.pathname.includes("login.html")) {
+        return; // Skip simulation engine on login screen
+      }
       if (this.timer) clearInterval(this.timer);
       this.timer = setInterval(() => {
         if (!this.state.simRunning) return;
