@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administrator Console · MARISENTINEL</title>
+  <meta name="description" content="Configure and audit the maritime intelligence platform.">
+  
+  <link rel="icon" type="image/svg+xml" href="public/favicon.svg">
+  <link rel="icon" type="image/x-icon" href="public/favicon.ico">
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <div id="shell-sidebar-slot"></div>
+
+    <div class="app-main">
+      <div id="shell-header-slot"></div>
+
+      <main class="app-content" id="admin-view-container">
+        <!-- Dynamic Subviews -->
+      </main>
+    </div>
+  </div>
+
+  <!-- Add User Modal -->
+  <div id="user-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Create Platform Operator Account</h3>
+        <button class="toast-close" onclick="document.getElementById('user-modal').classList.remove('open')">&times;</button>
+      </div>
+      <form id="user-form">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <input type="text" id="new-user-name" class="input-field" placeholder="e.g. Lt. Arun Sharma" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Username</label>
+            <input type="text" id="new-user-username" class="input-field" placeholder="e.g. asharma" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Role</label>
+            <select id="new-user-role" class="select-field">
+              <option value="field">Field Officer</option>
+              <option value="command">Command Officer</option>
+              <option value="administrator">Administrator</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Region / Operational Base</label>
+            <input type="text" id="new-user-region" class="input-field" placeholder="e.g. Paradip Coast Guard Base" required />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('user-modal').classList.remove('open')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create User Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Zone Modal -->
+  <div id="zone-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Establish Geofenced Security Zone</h3>
+        <button class="toast-close" onclick="document.getElementById('zone-modal').classList.remove('open')">&times;</button>
+      </div>
+      <form id="zone-form">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Zone Name</label>
+            <input type="text" id="new-zone-name" class="input-field" placeholder="e.g. Dhamra LNG Terminal Perimeter" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Classification</label>
+            <select id="new-zone-class" class="select-field">
+              <option value="Normal">Normal (Navigational Corridor)</option>
+              <option value="Monitoring">Monitoring (Coastal Sector)</option>
+              <option value="Restricted">Restricted (Port Approach)</option>
+              <option value="High Risk">High Risk (Offshore Energy SPM)</option>
+              <option value="Critical">Critical (Naval / Submarine Base)</option>
+            </select>
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Latitude (°N)</label>
+              <input type="number" step="0.01" id="new-zone-lat" class="input-field" placeholder="20.80" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Longitude (°E)</label>
+              <input type="number" step="0.01" id="new-zone-lng" class="input-field" placeholder="87.05" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Radius (km)</label>
+            <input type="number" id="new-zone-radius" class="input-field" placeholder="25" required />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('zone-modal').classList.remove('open')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Establish Zone</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Threat Rule Modal -->
+  <div id="rule-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Define Threat Scoring Logic Rule</h3>
+        <button class="toast-close" onclick="document.getElementById('rule-modal').classList.remove('open')">&times;</button>
+      </div>
+      <form id="rule-form">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Rule Name</label>
+            <input type="text" id="new-rule-name" class="input-field" placeholder="e.g. Sudden High-Speed Acceleration" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Trigger Logic Description</label>
+            <input type="text" id="new-rule-desc" class="input-field" placeholder="e.g. Vessel speed exceeds 25 kts in shallow coastal zone" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Risk Weight Penalty Score (+pts)</label>
+            <input type="number" id="new-rule-weight" class="input-field" placeholder="25" min="5" max="50" required />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('rule-modal').classList.remove('open')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Deploy Threat Rule</button>
+        </div>
+      </form>
+    </div>
+  <!-- Incident Dossier Modal -->
+  <div id="inc-dossier-modal" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width:700px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="inc-dossier-title">Incident Dossier Record</h3>
+        <button class="toast-close" onclick="document.getElementById('inc-dossier-modal').classList.remove('open')">&times;</button>
+      </div>
+      <div class="modal-body" id="inc-dossier-body">
+        <!-- Dynamic Dossier Content -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('inc-dossier-modal').classList.remove('open')">Close Dossier</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/services/ruleEngine.js"></script>
+  <script src="js/services/riskEngine.js"></script>
+  <script src="js/services/threatEngine.js"></script>
+  <script src="js/services/fusionService.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/map.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      await window.msStore.ready;
+
+      function getActiveTabFromHash() {
+        const hash = window.location.hash.replace(/^#/, "").trim().toLowerCase();
+        if (!hash) return "overview";
+        if (hash === "geofences" || hash === "zones" || hash === "geofence" || hash === "zone") return "geofences";
+        if (hash === "incidents" || hash === "incident") return "incidents";
+        if (hash === "users" || hash === "user") return "users";
+        if (hash === "rules" || hash === "threatrules") return "rules";
+        if (hash === "audit" || hash === "logs" || hash === "auditlogs") return "audit";
+        if (hash === "sources" || hash === "source") return "sources";
+        if (hash === "vessels" || hash === "vessel") return "vessels";
+        if (hash === "profile") return "profile";
+        return "overview";
+      }
+
+      const initialTab = getActiveTabFromHash();
+      const { sidebarHtml, headerHtml } = window.MS_UI.renderAppShell("administrator", initialTab);
+      document.getElementById("shell-sidebar-slot").outerHTML = sidebarHtml;
+      document.getElementById("shell-header-slot").outerHTML = headerHtml;
+
+      let currentTab = initialTab;
+      let auditFilter = "";
+
+      function renderTab(tab) {
+        if (tab === "zones") tab = "geofences";
+        if (tab === "logs") tab = "audit";
+        currentTab = tab || currentTab;
+
+        // Synchronize browser URL hash
+        const targetHash = currentTab === "overview" ? "" : `#${currentTab}`;
+        if (window.location.hash !== targetHash) {
+          if (window.history && window.history.replaceState) {
+            window.history.replaceState(null, null, targetHash || window.location.pathname + window.location.search);
+          } else {
+            window.location.hash = targetHash;
+          }
+        }
+
+        // Synchronize active nav link in sidebar
+        document.querySelectorAll(".nav-link").forEach((link) => {
+          const linkTab = link.getAttribute("data-tab");
+          if (linkTab === currentTab || (linkTab === "geofences" && currentTab === "zones") || (linkTab === "logs" && currentTab === "audit")) {
+            link.classList.add("active");
+          } else {
+            link.classList.remove("active");
+          }
+        });
+
+        const container = document.getElementById("admin-view-container");
+        const s = window.msStore.getState();
+
+        if (tab === "overview") {
+          const connected = s.sources.filter(x => x.status === "connected").length;
+          const health = Math.round((connected / Math.max(1, s.sources.length)) * 100);
+
+          container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Administrator Overview</h1>
+                <p class="section-subtitle">Platform configuration, identity, data sources and audit posture.</p>
+              </div>
+              <span class="badge ${health === 100 ? "badge-ok" : "badge-warn"}">
+                System health ${health}%
+              </span>
+            </div>
+
+            <div class="grid-4" style="margin-bottom: 20px;">
+              <div class="metric-card">
+                <div class="metric-label">Total Users</div>
+                <div class="metric-value mono-num">${s.users.length}</div>
+                <div class="metric-hint">${s.users.filter(u => u.status === 'active').length} active accounts</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Active Zones</div>
+                <div class="metric-value mono-num" style="color: var(--secondary);">${s.zones.filter(z => z.status === 'active').length}</div>
+                <div class="metric-hint">${s.zones.length} total configured</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Data Sources</div>
+                <div class="metric-value mono-num">${connected}/${s.sources.length}</div>
+                <div class="metric-hint">Connected live feeds</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Critical Alerts</div>
+                <div class="metric-value mono-num" style="color: var(--tertiary);">${s.alerts.filter(a => a.severity === 'Critical').length}</div>
+                <div class="metric-hint">Requiring intervention</div>
+              </div>
+            </div>
+
+            <div class="grid-3" style="grid-template-columns: 2fr 1fr; margin-bottom: 20px;">
+              <div class="panel">
+                <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                  <h2>Geofence Perimeter Coverage Map</h2>
+                  <a href="#geofences" class="badge badge-neutral" onclick="window.renderTab('geofences')">Manage Geofences &rarr;</a>
+                </div>
+                <div class="panel-body no-padding" style="height: 380px;">
+                  <div id="admin-map" class="map-canvas"></div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="panel-header">
+                  <h2>Recent Audit Activity</h2>
+                  <a href="#audit" class="badge badge-neutral" onclick="window.renderTab('audit')">View All &rarr;</a>
+                </div>
+                <div class="panel-body" style="max-height: 380px; overflow-y: auto;">
+                  ${(s.audit || []).filter(l => l && l.action !== "THREAT_ALERT_TRIGGERED").slice(0, 7).map(l => `
+                    <div style="padding: 10px 0; border-bottom: 1px solid var(--border-color);">
+                      <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="badge ${l.status === 'success' ? 'badge-ok' : 'badge-critical'}">${l.module || 'System'}</span>
+                        <span style="font-size:12px; color:var(--text-muted);">${window.MS_UI.timeAgo(l.ts || l.timestamp)}</span>
+                      </div>
+                      <p style="font-size:14px; margin-top:4px; font-weight:500;">${l.action}</p>
+                      <span style="font-size:12px; color:var(--text-muted);">${l.user || 'System'} · ${window.MS_UI.fmtTime(l.ts || l.timestamp)}</span>
+                    </div>
+                  `).join("")}
+                </div>
+              </div>
+            </div>
+
+            <div class="grid-4" style="grid-template-columns: repeat(4, 1fr);">
+              ${s.sources.map(src => `
+                <div class="panel">
+                  <div class="panel-header">
+                    <h3>${src.kind}</h3>
+                    <span class="badge ${src.status === 'connected' ? 'badge-ok' : 'badge-warn'}">${src.status}</span>
+                  </div>
+                  <div class="panel-body">
+                    <p style="font-weight:700; font-size:15px;">${src.name}</p>
+                    <p style="font-size:13px; color:var(--text-muted); margin-top:6px;">Last sync ${window.MS_UI.timeAgo(src.lastSync)}</p>
+                    <div style="margin-top:12px;">
+                      <button class="btn btn-sm ${src.status === 'connected' ? 'btn-secondary' : 'btn-success'}" onclick="window.msStore.toggleSource('${src.id}'); renderTab('overview');">
+                        ${src.status === 'connected' ? 'Disconnect' : 'Connect'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          `;
+
+          setTimeout(() => {
+            window.MS_MAP.initMap("admin-map", { zoom: 6 });
+          }, 50);
+
+        } else if (tab === "incidents") {
+          const incFilter = window.adminIncFilter || "all";
+          const searchKw = window.adminIncSearch || "";
+          const stats = window.msStore.getIncidentStats();
+          const incidents = window.msStore.getIncidentHistory("all", incFilter, "all", searchKw);
+
+          container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Incident History &amp; Compliance Archives</h1>
+                <p class="section-subtitle">Platform-wide historical case audit, operational response metrics, officer dispatches, and evidence vault records.</p>
+              </div>
+            </div>
+
+            <div class="grid-4" style="margin-bottom: 20px;">
+              <div class="metric-card">
+                <div class="metric-label">Total Platform Incidents</div>
+                <div class="metric-value mono-num">${stats.total}</div>
+                <div class="metric-hint">Historical &amp; Active Cases</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Resolved &amp; Archived</div>
+                <div class="metric-value mono-num" style="color:var(--status-ok);">${stats.resolved}</div>
+                <div class="metric-hint">${stats.resolutionRatePct}% Resolution Clearance Rate</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Active Interceptions</div>
+                <div class="metric-value mono-num" style="color:var(--status-warn);">${stats.active}</div>
+                <div class="metric-hint">Underway in Field</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Avg. Response Time</div>
+                <div class="metric-value mono-num" style="color:var(--primary);">${stats.avgResponseMins} Mins</div>
+                <div class="metric-hint">Alert to Patrol Dispatch</div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <h2>Platform Historical Incident Dossiers</h2>
+                <div style="display:flex; gap:10px; align-items:center;">
+                  <input type="text" class="input-field" placeholder="Search vessel, ID, title..." value="${searchKw}" oninput="window.adminIncSearch = this.value; window.renderTab('incidents');" style="width:240px; font-size:13px;" />
+                  <select class="select-field" style="width:160px; font-size:13px;" onchange="window.adminIncFilter = this.value; window.renderTab('incidents');">
+                    <option value="all" ${incFilter === 'all' ? 'selected' : ''}>All Statuses</option>
+                    <option value="active" ${incFilter === 'active' ? 'selected' : ''}>Active / In Progress</option>
+                    <option value="closed" ${incFilter === 'closed' ? 'selected' : ''}>Closed &amp; Archived</option>
+                  </select>
+                </div>
+              </div>
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Incident ID</th>
+                      <th>Vessel / Title</th>
+                      <th>Category</th>
+                      <th>Risk Score</th>
+                      <th>Assigned Unit</th>
+                      <th>Detected Timestamp</th>
+                      <th>Status</th>
+                      <th style="text-align:right;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${incidents.map(inc => {
+                      const officer = s.users.find(u => u.id === inc.assignedTo)?.name || 'Unassigned';
+                      return `
+                        <tr>
+                          <td><span class="mono"><strong>${inc.id}</strong></span></td>
+                          <td>
+                            <strong>${inc.vesselName}</strong><br>
+                            <span style="font-size:12px; color:var(--text-muted);">${inc.title}</span>
+                          </td>
+                          <td>${inc.category}</td>
+                          <td><span class="badge ${inc.risk >= 80 ? 'badge-critical' : inc.risk >= 70 ? 'badge-danger' : 'badge-warn'}">${inc.risk}/100</span></td>
+                          <td>${officer}</td>
+                          <td><span style="font-size:12px; color:var(--text-muted);">${window.MS_UI.fmtTime(inc.detectedAt)}</span></td>
+                          <td><span class="badge ${window.MS_UI.getBadgeClass(inc.status)}">${inc.status}</span></td>
+                          <td style="text-align:right;">
+                            <button class="btn btn-secondary btn-sm" onclick="window.viewIncidentDossier('${inc.id}')">Inspect Dossier</button>
+                          </td>
+                        </tr>
+                      `;
+                    }).join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+
+        } else if (tab === "users") {
+          container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">User & Role Management</h1>
+                <p class="section-subtitle">Manage operator accounts, assign access roles (Admin / Command / Field), enable/disable access, and track login activity.</p>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="document.getElementById('user-modal').classList.add('open');">+ Add User</button>
+            </div>
+
+            <div class="panel">
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Operator Name</th>
+                      <th>Username</th>
+                      <th>Assigned Role</th>
+                      <th>Region / Base</th>
+                      <th>Status</th>
+                      <th>Last Active</th>
+                      <th style="text-align:right;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${s.users.map(u => `
+                      <tr>
+                        <td><strong>${u.name}</strong></td>
+                        <td><span class="mono">${u.username}</span></td>
+                        <td>
+                          <span class="badge ${u.role === 'administrator' ? 'badge-primary' : u.role === 'command' ? 'badge-info' : 'badge-ok'}">
+                            ${u.role.toUpperCase()}
+                          </span>
+                        </td>
+                        <td>${u.region}</td>
+                        <td>
+                          <span class="badge ${u.status === 'active' ? 'badge-ok' : 'badge-neutral'}">
+                            ${u.status}
+                          </span>
+                        </td>
+                        <td><span style="font-size:13px; color:var(--text-muted);">${u.lastLogin ? window.MS_UI.timeAgo(u.lastLogin) : 'Active today'}</span></td>
+                        <td style="text-align:right;">
+                          <div style="display:inline-flex; gap:6px;">
+                            <button class="btn btn-secondary btn-sm" onclick="window.msStore.toggleUserStatus('${u.id}'); renderTab('users');">
+                              ${u.status === 'active' ? 'Disable' : 'Enable'}
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="if(confirm('Delete user ${u.name}?')) { window.msStore.deleteUser('${u.id}'); renderTab('users'); }">
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    `).join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        } else if (tab === "geofences" || tab === "zones") {
+          const totalZones = s.zones.length;
+          const activeZones = s.zones.filter(z => z.status === 'active').length;
+          const criticalZones = s.zones.filter(z => z.classification === 'Critical' || z.classification === 'High Risk').length;
+          const monitoredArea = Math.round(s.zones.filter(z => z.status === 'active').reduce((acc, z) => acc + (Math.PI * (z.radiusKm || 25) * (z.radiusKm || 25)), 0));
+          
+          const currentFilter = window.adminGeofenceFilter || "all";
+          const filteredZones = currentFilter === "all"
+            ? s.zones
+            : currentFilter === "critical"
+            ? s.zones.filter(z => z.classification === "Critical" || z.classification === "High Risk")
+            : currentFilter === "restricted"
+            ? s.zones.filter(z => z.classification === "Restricted")
+            : currentFilter === "monitoring"
+            ? s.zones.filter(z => z.classification === "Monitoring")
+            : currentFilter === "active"
+            ? s.zones.filter(z => z.status === "active")
+            : s.zones.filter(z => (z.classification || "").toLowerCase() === currentFilter.toLowerCase());
+
+          container.innerHTML = `
+            <div class="section-header" style="align-items:flex-start; margin-bottom:18px;">
+              <div>
+                <h1 class="section-title">Geofence Manager</h1>
+                <p class="section-subtitle">Establish, monitor, and enforce high-precision maritime security perimeters across the Bay of Bengal. Synchronizes real-time perimeter breaches with AI threat escalation and transponder blackout alarms.</p>
+              </div>
+              <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="btn btn-primary btn-sm" onclick="document.getElementById('zone-modal').classList.add('open');" style="display:flex; align-items:center; gap:6px;">
+                  <span>🛡️</span> + Create Geofence Perimeter
+                </button>
+              </div>
+            </div>
+
+            <!-- KPI Metric Cards -->
+            <div class="grid-4" style="margin-bottom: 20px;">
+              <div class="metric-card">
+                <div class="metric-label">Total Geofences</div>
+                <div class="metric-value mono-num">${totalZones}</div>
+                <div class="metric-hint">Defined security cordons</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Active Perimeters</div>
+                <div class="metric-value mono-num" style="color: var(--secondary);">${activeZones}</div>
+                <div class="metric-hint">Live radar &amp; AIS enforcement</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Critical &amp; High Risk</div>
+                <div class="metric-value mono-num" style="color: var(--tertiary);">${criticalZones}</div>
+                <div class="metric-hint">Immediate C2 alert triggers</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Monitored Area</div>
+                <div class="metric-value mono-num" id="kpi-monitored-area" style="color: var(--primary);">${monitoredArea.toLocaleString()} km²</div>
+                <div class="metric-hint">Total maritime coverage</div>
+              </div>
+            </div>
+
+            <!-- Dedicated Geofence GIS Map Panel -->
+            <div class="panel" style="margin-bottom: 20px;">
+              <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <h2>Spatial Geofence Grid &amp; Active Cordon Map</h2>
+                  <span class="badge badge-primary">Leaflet Tactical GIS</span>
+                </div>
+                <div style="display:flex; gap:12px; align-items:center; font-size:12px; color:var(--text-muted); flex-wrap:wrap;">
+                  <span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#ef4444;display:inline-block;"></span> Critical</span>
+                  <span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#f97316;display:inline-block;"></span> High Risk</span>
+                  <span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#f59e0b;display:inline-block;"></span> Restricted</span>
+                  <span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#0284c7;display:inline-block;"></span> Monitoring</span>
+                  <span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#22c55e;display:inline-block;"></span> Normal</span>
+                </div>
+              </div>
+              <div class="panel-body no-padding" style="height: 420px; position:relative;">
+                <div id="geofence-map" class="map-canvas" style="height:100%; width:100%;"></div>
+              </div>
+            </div>
+
+            <!-- Filter Controls Bar -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+              <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                <span style="font-size:13px; font-weight:600; color:var(--text-muted); margin-right:4px;">Filter Perimeters:</span>
+                <button class="btn btn-sm ${currentFilter === 'all' ? 'btn-primary' : 'btn-secondary'}" onclick="window.setGeofenceFilter('all')">All (${totalZones})</button>
+                <button class="btn btn-sm ${currentFilter === 'critical' ? 'btn-primary' : 'btn-secondary'}" onclick="window.setGeofenceFilter('critical')">Critical &amp; High Risk (${criticalZones})</button>
+                <button class="btn btn-sm ${currentFilter === 'restricted' ? 'btn-primary' : 'btn-secondary'}" onclick="window.setGeofenceFilter('restricted')">Restricted (${s.zones.filter(z => z.classification === 'Restricted').length})</button>
+                <button class="btn btn-sm ${currentFilter === 'monitoring' ? 'btn-primary' : 'btn-secondary'}" onclick="window.setGeofenceFilter('monitoring')">Monitoring (${s.zones.filter(z => z.classification === 'Monitoring').length})</button>
+                <button class="btn btn-sm ${currentFilter === 'active' ? 'btn-primary' : 'btn-secondary'}" onclick="window.setGeofenceFilter('active')">Active Only (${activeZones})</button>
+              </div>
+              <span style="font-size:13px; color:var(--text-muted);">Showing <strong>${filteredZones.length}</strong> of <strong>${totalZones}</strong> geofences</span>
+            </div>
+
+            <!-- Geofence Cards Grid -->
+            <div class="grid-2" style="gap:16px;">
+              ${filteredZones.map(z => {
+                const badgeClass = window.MS_UI.getBadgeClass(z.classification);
+                const area = Math.round(Math.PI * (z.radiusKm || 25) * (z.radiusKm || 25));
+
+                return `
+                  <div class="panel" style="border-left: 4px solid ${
+                    z.classification === 'Critical' ? 'var(--status-critical)' :
+                    z.classification === 'High Risk' ? 'var(--status-danger)' :
+                    z.classification === 'Restricted' ? 'var(--status-warn)' :
+                    z.classification === 'Monitoring' ? 'var(--primary)' : 'var(--status-ok)'
+                  };">
+                    <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                      <div style="display:flex; align-items:center; gap:8px;">
+                        <h2 style="font-size:16px;">${z.name}</h2>
+                        <span class="mono" style="font-size:11px; color:var(--text-muted);">${z.id || 'ZN'}</span>
+                      </div>
+                    </div>
+                    <div class="panel-body">
+                      <p style="font-size:13.5px; color:var(--text-muted); margin-bottom:12px; line-height:1.45;">${z.description || 'Monitored coastal sector.'}</p>
+                      
+                      <div class="keyval-row"><span class="keyval-key">Coordinates</span><span class="keyval-val mono">${z.lat}°N, ${z.lng}°E</span></div>
+                      
+                      <!-- Edit Radius / On-Field Distance Slider Line -->
+                      <div style="margin-top: 14px; padding: 12px 14px; background: var(--bg-hover, #f8fafc); border: 1px solid var(--border-color, #e2e8f0); border-radius: 8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                          <span style="font-size: 12.5px; font-weight: 700; color: var(--text-main); display:flex; align-items:center; gap: 6px;">
+                            <span>📏</span> Edit On-Field Distance (Radius):
+                          </span>
+                          <span id="radius-badge-${z.id}" class="badge badge-primary mono" style="font-size: 13px; font-weight: 700; padding: 3px 10px;">
+                            ${z.radiusKm} km
+                          </span>
+                        </div>
+                        
+                        <div style="display:flex; align-items:center; gap: 8px;">
+                          <button type="button" class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 11px; height: 24px;" onclick="window.nudgeGeofenceRadius('${z.id}', -5)" title="Decrease radius by 5 km">-5 km</button>
+                          <input 
+                            type="range" 
+                            id="radius-slider-${z.id}"
+                            min="5" 
+                            max="100" 
+                            step="1"
+                            value="${z.radiusKm}" 
+                            style="flex: 1; cursor: pointer; accent-color: var(--primary, #0284c7); height: 6px;"
+                            oninput="window.handleGeofenceRadiusChange('${z.id}', this.value)"
+                            title="Drag line to increase or decrease on-field distance"
+                          />
+                          <button type="button" class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 11px; height: 24px;" onclick="window.nudgeGeofenceRadius('${z.id}', 5)" title="Increase radius by 5 km">+5 km</button>
+                        </div>
+
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 8px; font-size: 11.5px; color: var(--text-muted);">
+                          <span id="radius-nm-${z.id}">Distance: ${(z.radiusKm * 0.539957).toFixed(1)} NM</span>
+                          <span id="radius-area-${z.id}">~${area.toLocaleString()} km² coverage</span>
+                        </div>
+                      </div>
+                      
+                      <div style="margin-top:16px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); padding-top:12px;">
+                        <button class="btn btn-secondary btn-sm" onclick="window.focusGeofence(${z.lat}, ${z.lng})" title="Pan and zoom map to this perimeter">
+                          🎯 Focus on Map
+                        </button>
+                        <div style="display:flex; gap:6px;">
+                          <button class="btn btn-secondary btn-sm" onclick="window.msStore.toggleZoneStatus('${z.id}'); renderTab('geofences');">
+                            ${z.status === 'active' ? 'Deactivate' : 'Activate'}
+                          </button>
+                          <button class="btn btn-danger btn-sm" onclick="if(confirm('Delete geofence perimeter ${z.name}?')) { window.msStore.deleteZone('${z.id}'); renderTab('geofences'); }">
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join("")}
+            </div>
+          `;
+
+          setTimeout(() => {
+            window._geofenceMapInstance = window.MS_MAP.initMap("geofence-map", { zoom: 6, center: [17.5, 84.5] });
+          }, 60);
+        } else if (tab === "sources") {
+          container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Data Source Control</h1>
+                <p class="section-subtitle">Connect and monitor live telemetry pipelines fusing AIS vessel tracking, coastal radar chains, satellite SAR tasking, and INCOIS weather.</p>
+              </div>
+            </div>
+
+            <div class="grid-2">
+              ${s.sources.map(src => `
+                <div class="panel">
+                  <div class="panel-header">
+                    <h2>${src.name}</h2>
+                    <span class="badge ${src.status === 'connected' ? 'badge-ok' : 'badge-warn'}">${src.status}</span>
+                  </div>
+                  <div class="panel-body">
+                    <div class="keyval-row"><span class="keyval-key">Source Type</span><span class="keyval-val">${src.kind}</span></div>
+                    <div class="keyval-row"><span class="keyval-key">Connection Status</span><span class="keyval-val" style="color: ${src.status === 'connected' ? 'var(--secondary)' : 'var(--status-warn)'}; font-weight:700;">${src.status.toUpperCase()}</span></div>
+                    <div class="keyval-row"><span class="keyval-key">Last Sync Ingestion</span><span class="keyval-val">${window.MS_UI.timeAgo(src.lastSync)}</span></div>
+                    <div style="margin-top:16px; text-align:right;">
+                      <button class="btn btn-sm ${src.status === 'connected' ? 'btn-secondary' : 'btn-success'}" onclick="window.msStore.toggleSource('${src.id}'); renderTab('sources');">
+                        ${src.status === 'connected' ? 'Disconnect Pipeline' : 'Connect Pipeline'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          `;
+        } else if (tab === "vessels") {
+          container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Tracked Maritime Traffic</h1>
+                <p class="section-subtitle">All vessels currently monitored in the Bay of Bengal surveillance picture.</p>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Vessel Name</th>
+                      <th>MMSI</th>
+                      <th>Flag / Type</th>
+                      <th>Speed / Course</th>
+                      <th>ML Model Risk Score</th>
+                      <th>AIS Status</th>
+                      <th style="text-align:right;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${s.vessels.map(v => {
+                      const score = typeof v.riskScore === "number" ? v.riskScore : (v.risk ?? 0);
+                      return `
+                      <tr>
+                        <td><strong style="cursor:pointer; color:var(--primary);" onclick="window.openThreatDossier('${v.id}')">${v.name}</strong></td>
+                        <td><span class="mono">${v.mmsi}</span></td>
+                        <td>${v.flag} · ${v.type}</td>
+                        <td>${v.speed} kts · ${v.course}°</td>
+                        <td><span class="badge ${score >= 80 ? 'badge-critical' : score >= 70 ? 'badge-danger' : score >= 35 ? 'badge-warn' : 'badge-ok'}">${score}/100</span></td>
+                        <td><span class="badge ${v.ais === 'active' ? 'badge-ok' : v.ais === 'lost' ? 'badge-critical' : 'badge-warn'}">${v.ais}</span></td>
+                        <td style="text-align:right;">
+                          <button class="btn btn-secondary btn-sm" onclick="window.openThreatDossier('${v.id}')">Inspect Profile</button>
+                        </td>
+                      </tr>
+                    `;}).join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        } else if (tab === "rules") {
+          container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Threat Rule Setup (AI Logic Engine)</h1>
+                <p class="section-subtitle">Transparent rule-based scoring engine evaluating vessel behavior (restricted zone entry, AIS transponder blackout, sudden speed changes).</p>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="document.getElementById('rule-modal').classList.add('open');">+ Add Threat Rule</button>
+            </div>
+
+            <div class="panel">
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 100px;">Rule ID</th>
+                      <th style="width: 220px;">Threat Category</th>
+                      <th style="width: 320px;">Detection Logic</th>
+                      <th>Human-Readable Behavior Context</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${(() => {
+                      const CANONICAL_RULES = {
+                        "TR-01": {
+                          category: "Dark Activity / Smuggling",
+                          logic: "AIS OFF + Restricted Zone",
+                          context: "The vessel has turned off its tracking system while entering a restricted or sensitive maritime area, which is a strong sign of intentional concealment, often linked to smuggling or illegal operations."
+                        },
+                        "TR-02": {
+                          category: "Suspicious Loitering",
+                          logic: "Loitering + High Risk Area",
+                          context: "The vessel is staying idle or moving very slowly near a high-risk zone (such as ports or strategic assets), indicating possible surveillance, waiting activity, or suspicious intent."
+                        },
+                        "TR-03": {
+                          category: "Illegal Fishing",
+                          logic: "Speed < 5 knots + Restricted Zone",
+                          context: "The vessel is moving at very low speed inside a restricted or protected zone, which typically indicates fishing activity where it is not allowed."
+                        },
+                        "TR-04": {
+                          category: "Border Intrusion",
+                          logic: "Route Deviation + Near Border",
+                          context: "The vessel has deviated from its normal route and is heading toward or crossing an international maritime boundary, suggesting unauthorized entry or intrusion."
+                        },
+                        "TR-05": {
+                          category: "Anomalous Behavior",
+                          logic: "Speed Change > 30 knots + High Risk Area",
+                          context: "The vessel shows a sudden and unusual spike or drop in speed while operating near a sensitive area, which may indicate evasive maneuvers, pursuit, or abnormal operational behavior."
+                        }
+                      };
+
+                      return s.threatRules.map(r => {
+                        const info = CANONICAL_RULES[r.id] || {
+                          category: r.name || "Custom Threat",
+                          logic: r.condition || r.name,
+                          context: r.description || "Automated heuristic trigger."
+                        };
+
+                        return `
+                          <tr>
+                            <td><span class="mono"><strong>${r.id}</strong></span></td>
+                            <td><strong>${info.category}</strong></td>
+                            <td>
+                              <span class="badge badge-danger" style="font-weight:600; font-size:12px; padding:6px 12px; display:inline-block; border-radius:12px; letter-spacing:0.3px;">
+                                ${info.logic}
+                              </span>
+                            </td>
+                            <td style="color:var(--text-main); font-size:13.5px; line-height:1.55;">${info.context}</td>
+                          </tr>
+                        `;
+                      }).join("");
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        } else if (tab === "audit" || tab === "logs") {
+          const auditList = (s.audit || []).filter(l => l && l.action !== "THREAT_ALERT_TRIGGERED");
+          const filteredAudit = auditFilter
+            ? auditList.filter(l => {
+                const mod = (l.module || "").toLowerCase();
+                const usr = (l.user || "").toLowerCase();
+                const act = (l.action || "").toLowerCase();
+                const q = auditFilter.toLowerCase();
+                return mod.includes(q) || usr.includes(q) || act.includes(q);
+              })
+            : auditList;
+
+          const isAuthEntry = (l) => {
+            const mod = (l.module || "").toUpperCase();
+            const act = (l.action || "").toLowerCase();
+            return mod === "AUTH" || act.includes("signed in") || act.includes("login");
+          };
+
+          const loginAudit = filteredAudit.filter(isAuthEntry);
+          const incidentAudit = filteredAudit.filter(l => !isAuthEntry(l));
+
+          container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Security & System Audit Logs</h1>
+                <p class="section-subtitle">Immutable accountability trail tracking operator activity, divided into Login & Authentication details and Incident/Tactical actions.</p>
+              </div>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <input type="text" class="input-field" placeholder="Filter by module or user..." value="${auditFilter}" oninput="window.updateAuditFilter(this.value)" style="width:240px; font-size:14px;" />
+              </div>
+            </div>
+
+            <div class="grid-2" style="grid-template-columns: 1fr 1fr; gap: 20px; align-items: start;">
+              <!-- Block 1: Login Details -->
+              <div class="panel">
+                <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                  <h2>🔑 Login &amp; Authentication Logs</h2>
+                  <span class="badge badge-primary">${loginAudit.length} Entries</span>
+                </div>
+                <div class="table-container" style="max-height: 540px; overflow-y: auto;">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Timestamp</th>
+                        <th>Operator</th>
+                        <th>Login Activity</th>
+                        <th>Outcome</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${loginAudit.length ? loginAudit.map(l => `
+                        <tr>
+                          <td><span class="mono">${window.MS_UI.fmtTime(l.ts || l.timestamp)}</span></td>
+                          <td><strong>${l.user}</strong></td>
+                          <td>${l.action}</td>
+                          <td><span class="badge ${l.status === 'success' ? 'badge-ok' : 'badge-critical'}">${l.status}</span></td>
+                        </tr>
+                      `).join("") : `
+                        <tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:20px;">No login log entries found.</td></tr>
+                      `}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Block 2: Incident Actions -->
+              <div class="panel">
+                <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                  <h2>⚡ Incident &amp; System Actions</h2>
+                  <span class="badge badge-warn">${incidentAudit.length} Entries</span>
+                </div>
+                <div class="table-container" style="max-height: 540px; overflow-y: auto;">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Timestamp</th>
+                        <th>Module</th>
+                        <th>Operator</th>
+                        <th>Action Executed</th>
+                        <th>Outcome</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${incidentAudit.length ? incidentAudit.map(l => `
+                        <tr>
+                          <td><span class="mono">${window.MS_UI.fmtTime(l.ts || l.timestamp)}</span></td>
+                          <td><span class="badge badge-neutral">${l.module || 'System'}</span></td>
+                          <td><strong>${l.user || 'System'}</strong></td>
+                          <td>${l.action || 'Operation recorded'}</td>
+                          <td><span class="badge ${l.status === 'success' ? 'badge-ok' : 'badge-critical'}">${l.status || 'success'}</span></td>
+                        </tr>
+                      `).join("") : `
+                        <tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:20px;">No incident action log entries found.</td></tr>
+                      `}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          `;
+        } else if (tab === "profile") {
+          container.innerHTML = window.MS_UI.getProfileHtml("administrator");
+        }
+      }
+      window.renderTab = renderTab;
+
+      window.updateAuditFilter = function(val) {
+        auditFilter = val;
+        renderTab("audit");
+      };
+
+      // Add user form handler
+      document.getElementById("user-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const name = document.getElementById("new-user-name").value;
+        const username = document.getElementById("new-user-username").value;
+        const role = document.getElementById("new-user-role").value;
+        const region = document.getElementById("new-user-region").value;
+        window.msStore.addUser(name, username, role, region);
+        document.getElementById("user-modal").classList.remove("open");
+        document.getElementById("user-form").reset();
+        renderTab("users");
+      });
+
+      // Add zone form handler
+      document.getElementById("zone-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const name = document.getElementById("new-zone-name").value;
+        const classification = document.getElementById("new-zone-class").value;
+        const lat = document.getElementById("new-zone-lat").value;
+        const lng = document.getElementById("new-zone-lng").value;
+        const radius = document.getElementById("new-zone-radius").value;
+        window.msStore.addZone(name, classification, lat, lng, radius);
+        document.getElementById("zone-modal").classList.remove("open");
+        document.getElementById("zone-form").reset();
+        renderTab("geofences");
+      });
+
+      window.setGeofenceFilter = function(filter) {
+        window.adminGeofenceFilter = filter;
+        renderTab("geofences");
+      };
+
+      window.focusGeofence = function(lat, lng) {
+        if (window._geofenceMapInstance && window._geofenceMapInstance.map) {
+          window._geofenceMapInstance.map.flyTo([lat, lng], 8, { duration: 1.2 });
+          const mapEl = document.getElementById("geofence-map");
+          if (mapEl) mapEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      };
+
+      window.handleGeofenceRadiusChange = function(zoneId, newRadius) {
+        const val = parseInt(newRadius, 10);
+        if (isNaN(val)) return;
+
+        const badgeEl = document.getElementById(`radius-badge-${zoneId}`);
+        if (badgeEl) badgeEl.textContent = `${val} km`;
+
+        const nmEl = document.getElementById(`radius-nm-${zoneId}`);
+        if (nmEl) nmEl.textContent = `Distance: ${(val * 0.539957).toFixed(1)} NM`;
+
+        const areaEl = document.getElementById(`radius-area-${zoneId}`);
+        const area = Math.round(Math.PI * val * val);
+        if (areaEl) areaEl.textContent = `~${area.toLocaleString()} km² coverage`;
+
+        // Update in central state store (automatically updates Leaflet map circles in real-time)
+        if (window.msStore && window.msStore.updateZoneRadius) {
+          window.msStore.updateZoneRadius(zoneId, val);
+        }
+
+        // Live update top KPI card
+        const kpiEl = document.getElementById("kpi-monitored-area");
+        if (kpiEl && window.msStore) {
+          const s = window.msStore.getState();
+          const totalArea = Math.round(s.zones.filter(z => z.status === 'active').reduce((acc, z) => acc + (Math.PI * (z.radiusKm || 25) * (z.radiusKm || 25)), 0));
+          kpiEl.textContent = `${totalArea.toLocaleString()} km²`;
+        }
+      };
+
+      window.nudgeGeofenceRadius = function(zoneId, delta) {
+        const slider = document.getElementById(`radius-slider-${zoneId}`);
+        if (!slider) return;
+        const current = parseInt(slider.value, 10) || 25;
+        const next = Math.max(5, Math.min(100, current + delta));
+        slider.value = next;
+        window.handleGeofenceRadiusChange(zoneId, next);
+      };
+
+      // Add threat rule form handler
+      document.getElementById("rule-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const name = document.getElementById("new-rule-name").value;
+        const desc = document.getElementById("new-rule-desc").value;
+        const weight = document.getElementById("new-rule-weight").value;
+        window.msStore.addThreatRule(name, desc, weight);
+        document.getElementById("rule-modal").classList.remove("open");
+        document.getElementById("rule-form").reset();
+        renderTab("rules");
+      });
+
+      window.viewIncidentDossier = function(incId) {
+        const s = window.msStore.getState();
+        const inc = s.incidents.find(i => i.id === incId);
+        if (!inc) return;
+
+        const officer = s.users.find(u => u.id === inc.assignedTo)?.name || 'Unassigned';
+        document.getElementById("inc-dossier-title").textContent = `${inc.id} · ${inc.vesselName}`;
+        document.getElementById("inc-dossier-body").innerHTML = `
+          <div style="margin-bottom:14px;">
+            <span class="badge ${window.MS_UI.getBadgeClass(inc.status)}" style="font-size:13px;">${inc.status}</span>
+            <span class="badge ${inc.risk >= 80 ? 'badge-critical' : 'badge-warn'}" style="margin-left:6px; font-size:13px;">Threat Score: ${inc.risk}/100</span>
+          </div>
+          <h4 style="font-size:16px; font-weight:700; margin-bottom:4px;">${inc.title}</h4>
+          <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">${inc.description}</p>
+          
+          <div class="keyval-row"><span class="keyval-key">Category</span><span class="keyval-val">${inc.category}</span></div>
+          <div class="keyval-row"><span class="keyval-key">Assigned Officer</span><span class="keyval-val" style="font-weight:700; color:var(--primary);">${officer}</span></div>
+          <div class="keyval-row"><span class="keyval-key">Coordinates</span><span class="keyval-val mono">${inc.lat}°N, ${inc.lng}°E</span></div>
+          <div class="keyval-row"><span class="keyval-key">Detected At</span><span class="keyval-val">${window.MS_UI.fmtTime(inc.detectedAt)}</span></div>
+          ${inc.closedAt ? `<div class="keyval-row"><span class="keyval-key">Closed At</span><span class="keyval-val">${window.MS_UI.fmtTime(inc.closedAt)}</span></div>` : ''}
+
+          <div style="margin-top:16px;">
+            <h5 style="font-size:13px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">Chronological Timeline</h5>
+            <div class="timeline-list">
+              ${(inc.timeline || []).map(t => `
+                <div class="timeline-item">
+                  <span class="timeline-dot"></span>
+                  <div style="display:flex; justify-content:space-between;">
+                    <strong style="font-size:13px;">${t.status}</strong>
+                    <span style="font-size:11px; color:var(--text-muted);">${window.MS_UI.fmtTime(t.ts)}</span>
+                  </div>
+                  <p style="font-size:12px; color:var(--text-muted); margin-top:2px;">${t.note} (${t.actor})</p>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+
+          ${inc.fieldNotes && inc.fieldNotes.length ? `
+            <div style="margin-top:16px;">
+              <h5 style="font-size:13px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">Field Notes &amp; Observations</h5>
+              <ul style="font-size:13px; padding-left:18px; color:var(--text-main);">
+                ${inc.fieldNotes.map(n => `<li>${n}</li>`).join("")}
+              </ul>
+            </div>
+          ` : ''}
+
+          ${inc.evidence && inc.evidence.length ? `
+            <div style="margin-top:16px;">
+              <h5 style="font-size:13px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">Attached Mission Evidence</h5>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                ${inc.evidence.map(e => `<span class="badge badge-neutral" style="font-size:12px;">📄 ${e}</span>`).join("")}
+              </div>
+            </div>
+          ` : ''}
+        `;
+        document.getElementById("inc-dossier-modal").classList.add("open");
+      };
+
+      window.MS_UI.attachLayoutEvents(renderTab);
+
+      window.addEventListener("hashchange", () => {
+        const newTab = getActiveTabFromHash();
+        if (newTab !== currentTab) {
+          renderTab(newTab);
+        }
+      });
+
+      renderTab(initialTab);
+    });
+  </script>
+</body>
+</html>

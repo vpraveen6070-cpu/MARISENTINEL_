@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Command Center · MARISENTINEL</title>
+  <meta name="description" content="Real-time maritime threat picture for command officers.">
+
+  <link rel="icon" type="image/svg+xml" href="public/favicon.svg">
+  <link rel="icon" type="image/x-icon" href="public/favicon.ico">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+  <div class="app-container">
+    <div id="shell-sidebar-slot"></div>
+
+    <div class="app-main">
+      <div id="shell-header-slot"></div>
+
+      <main class="app-content" id="command-view-container">
+        <!-- Dynamic Subviews -->
+      </main>
+    </div>
+  </div>
+
+  <!-- Dispatch & Confirm Alert Modal -->
+  <div id="dispatch-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Confirm Threat & Dispatch Field Officer</h3>
+        <button class="toast-close"
+          onclick="document.getElementById('dispatch-modal').classList.remove('open')">&times;</button>
+      </div>
+      <form id="dispatch-form">
+        <input type="hidden" id="dispatch-alert-id" />
+        <div class="modal-body">
+          <div
+            style="background:var(--bg-card-subtle); padding:12px; border-radius:var(--radius-md); margin-bottom:14px; border:1px solid var(--border-color);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong id="dispatch-alert-title" style="font-size:16px;">Threat Alert</strong>
+              <span id="dispatch-alert-risk" class="badge badge-critical">Critical</span>
+            </div>
+            <p id="dispatch-alert-desc" style="font-size:14px; color:var(--text-muted); margin-top:4px;">Zone & Vessel
+              info</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Select Field Unit / Interceptor Officer</label>
+            <select id="dispatch-officer-select" class="select-field" required>
+              <!-- Dynamic Officers populated on open -->
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Mission Directive & Field Instructions</label>
+            <input type="text" id="dispatch-directive" class="input-field"
+              value="Intercept contact, verify AIS discrepancy, and secure sector perimeter." required />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary"
+            onclick="document.getElementById('dispatch-modal').classList.remove('open')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Confirm & Deploy Unit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Manual Incident Creation Modal -->
+  <div id="incident-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Log & Dispatch Tactical Incident</h3>
+        <button class="toast-close"
+          onclick="document.getElementById('incident-modal').classList.remove('open')">&times;</button>
+      </div>
+      <form id="incident-form">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Incident Title</label>
+            <input type="text" id="new-inc-title" class="input-field"
+              placeholder="e.g. Unidentified vessel loitering near refinery SPM" required />
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Category</label>
+              <select id="new-inc-cat" class="select-field">
+                <option value="Security Intrusion">Security Intrusion</option>
+                <option value="AIS Blackout / Smuggling">AIS Blackout / Smuggling</option>
+                <option value="Unauthorized Loitering">Unauthorized Loitering</option>
+                <option value="Search & Rescue">Search & Rescue</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Contact / Vessel Name</label>
+              <input type="text" id="new-inc-vessel" class="input-field" placeholder="e.g. Unknown Contact #42"
+                required />
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Risk Severity Level</label>
+              <select id="new-inc-level" class="select-field">
+                <option value="Critical">Critical (85–100)</option>
+                <option value="High">High (65–80)</option>
+                <option value="Elevated">Elevated (45–60)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Assign Field Officer</label>
+              <select id="new-inc-officer" class="select-field" required>
+                <!-- Populated dynamically -->
+              </select>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Latitude (°N)</label>
+              <input type="number" step="0.01" id="new-inc-lat" class="input-field" value="17.65" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Longitude (°E)</label>
+              <input type="number" step="0.01" id="new-inc-lng" class="input-field" value="83.35" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Operational Briefing</label>
+            <input type="text" id="new-inc-desc" class="input-field"
+              placeholder="Brief situational description and required evidence." required />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary"
+            onclick="document.getElementById('incident-modal').classList.remove('open')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create & Dispatch</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Vessel Detail Intelligence Modal -->
+  <div id="vessel-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title" id="vessel-modal-title">Vessel Intelligence Profile</h3>
+        <button class="toast-close"
+          onclick="document.getElementById('vessel-modal').classList.remove('open')">&times;</button>
+      </div>
+      <div class="modal-body" id="vessel-modal-body">
+        <!-- Dynamic Vessel Telemetry -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary"
+          onclick="document.getElementById('vessel-modal').classList.remove('open')">Close</button>
+      </div>
+    </div>
+    <!-- Incident Dossier Modal -->
+    <div id="inc-dossier-modal" class="modal-backdrop">
+      <div class="modal-dialog" style="max-width:700px;">
+        <div class="modal-header">
+          <h3 class="modal-title" id="inc-dossier-title">Incident Dossier Record</h3>
+          <button class="toast-close"
+            onclick="document.getElementById('inc-dossier-modal').classList.remove('open')">&times;</button>
+        </div>
+        <div class="modal-body" id="inc-dossier-body">
+          <!-- Dynamic Dossier Content -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary"
+            onclick="document.getElementById('inc-dossier-modal').classList.remove('open')">Close Dossier</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/services/ruleEngine.js"></script>
+    <script src="js/services/riskEngine.js"></script>
+    <script src="js/services/threatEngine.js"></script>
+    <script src="js/services/fusionService.js"></script>
+    <script src="js/store.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/map.js"></script>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", async () => {
+        await window.msStore.ready;
+        const { sidebarHtml, headerHtml } = window.MS_UI.renderAppShell("command", "overview");
+        document.getElementById("shell-sidebar-slot").outerHTML = sidebarHtml;
+        document.getElementById("shell-header-slot").outerHTML = headerHtml;
+
+        let currentTab = "overview";
+
+        // =========================================================================
+        // DYNAMIC & INTERACTIVE ANALYTICS ENGINE
+        // =========================================================================
+        let analyticsMode = "threats"; // "threats" | "all"
+        let analyticsCategoryFilter = null; // category string or null
+        let analyticsHoveredCategory = null;
+
+        const THREAT_COLORS = {
+          "Dark Activity / Smuggling": "#ef4444",
+          "Border Intrusion": "#f97316",
+          "Illegal Fishing": "#eab308",
+          "Suspicious Loitering": "#0284c7",
+          "Anomalous Behavior": "#8b5cf6",
+          "Normal Transit": "#10b981",
+          "High Threat Intrusion": "#dc2626",
+          "Other / Unclassified": "#64748b"
+        };
+
+        const RISK_TIERS = [
+          { id: "low", label: "Low Risk (0–40)", color: "var(--secondary)", hex: "#10b981", min: 0, max: 40 },
+          { id: "elevated", label: "Elevated (41–60)", color: "var(--status-warn)", hex: "#f59e0b", min: 41, max: 60 },
+          { id: "high", label: "High Risk (61–80)", color: "var(--status-danger)", hex: "#f97316", min: 61, max: 80 },
+          { id: "critical", label: "Critical (81–100)", color: "var(--tertiary)", hex: "#ef4444", min: 81, max: 100 }
+        ];
+
+        function getVesselCategory(v) {
+          if (v.threatType && v.threatType !== "Normal" && v.threatType !== "Normal Transit") {
+            return v.threatType;
+          }
+          const score = v.riskScore ?? v.risk ?? 0;
+          if (score >= 80) return "Dark Activity / Smuggling";
+          if (score >= 70) return "Border Intrusion";
+          if (score >= 50) return "Suspicious Loitering";
+          if (score >= 35) return "Anomalous Behavior";
+          return "Normal Transit";
+        }
+
+        function getVesselRiskTier(v) {
+          const score = v.riskScore ?? v.risk ?? 0;
+          if (score > 80) return "critical";
+          if (score > 60) return "high";
+          if (score > 40) return "elevated";
+          return "low";
+        }
+
+        function buildDonutSvg(categories, totalCount) {
+          if (!totalCount || categories.length === 0) {
+            return `
+            <svg width="220" height="220" viewBox="0 0 220 220" style="overflow: visible;">
+              <circle cx="110" cy="110" r="75" fill="none" stroke="#334155" stroke-width="26" opacity="0.3" />
+            </svg>
+          `;
+          }
+
+          let currentOffset = 0;
+          const slicesHtml = categories.map((cat, idx) => {
+            const fraction = cat.count / totalCount;
+            const dash = Math.max(2, Math.round(fraction * 471));
+            const offset = currentOffset;
+            currentOffset += dash;
+
+            const isHovered = analyticsHoveredCategory === cat.name;
+            const isSelected = analyticsCategoryFilter === cat.name;
+            const isDimmed = (analyticsHoveredCategory && !isHovered) || (analyticsCategoryFilter && !isSelected);
+
+            const strokeWidth = isHovered ? 34 : (isSelected ? 32 : 26);
+            const strokeFilter = (isHovered || isSelected) ? `filter: drop-shadow(0 0 8px ${cat.color});` : '';
+            const opacity = isDimmed ? 0.35 : 1;
+
+            return `
+            <circle
+              id="donut-slice-${idx}"
+              class="donut-slice-item"
+              cx="110" cy="110" r="75"
+              fill="none"
+              stroke="${cat.color}"
+              stroke-width="${strokeWidth}"
+              stroke-dasharray="${dash} ${Math.max(0, 471 - dash)}"
+              stroke-dashoffset="${-offset}"
+              style="cursor: pointer; transition: stroke-width 0.2s ease, opacity 0.2s ease, filter 0.2s ease; opacity: ${opacity}; ${strokeFilter}"
+              data-category="${cat.name}"
+              onmouseenter="window.handleDonutHover('${cat.name}')"
+              onmouseleave="window.handleDonutLeave()"
+              onclick="window.toggleCategoryFilter('${cat.name}')"
+            />
+          `;
+          }).join("");
+
+          return `
+          <svg width="220" height="220" viewBox="0 0 220 220" style="overflow: visible; transform: rotate(-90deg);">
+            ${slicesHtml}
+          </svg>
+        `;
+        }
+
+        function buildDonutHud(categories, totalCount) {
+          let title = "No Threats";
+          let subtitle = "System Secure";
+          let label = "PRIMARY THREAT";
+          let color = "#10b981";
+
+          if (analyticsHoveredCategory) {
+            const hovered = categories.find(c => c.name === analyticsHoveredCategory);
+            if (hovered) {
+              label = "INSPECTING CATEGORY";
+              title = `${hovered.name} : ${hovered.pct}%`;
+              subtitle = `${hovered.count} of ${totalCount} targets`;
+              color = hovered.color;
+            }
+          } else if (analyticsCategoryFilter) {
+            const selected = categories.find(c => c.name === analyticsCategoryFilter);
+            if (selected) {
+              label = "ACTIVE FILTER";
+              title = `${selected.name} : ${selected.pct}%`;
+              subtitle = `${selected.count} targets · Click to clear`;
+              color = selected.color;
+            } else {
+              label = "ACTIVE FILTER";
+              title = analyticsCategoryFilter;
+              subtitle = "Click to clear filter";
+              color = THREAT_COLORS[analyticsCategoryFilter] || "#0284c7";
+            }
+          } else if (categories.length > 0) {
+            const primary = categories.find(c => c.name !== "Normal Transit") || categories[0];
+            label = "PRIMARY THREAT";
+            title = `${primary.name} : ${primary.pct}%`;
+            subtitle = `${primary.count} vessels detected`;
+            color = primary.color;
+          }
+
+          return `
+          <div id="analytics-donut-hud" style="background:#0f172a; border:1px solid ${color}66; color:#f8fafc; padding:8px 14px; border-radius:8px; box-shadow:0 10px 25px -5px rgba(0,0,0,0.5); font-size:14px; font-weight:600; text-align:center; min-width:145px; pointer-events:none; transition: all 0.2s ease;">
+            <div style="font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:2px;">${label}</div>
+            <div style="font-size:14px; font-weight:800; color:${color}; line-height:1.2;">${title}</div>
+            <div style="font-size:11px; color:#cbd5e1; font-weight:500; margin-top:2px;">${subtitle}</div>
+          </div>
+        `;
+        }
+
+        function buildDonutLegend(categories) {
+          if (!categories.length) return `<div style="text-align:center; font-size:13px; color:var(--text-muted); margin-top:14px;">No threat categories in current mode.</div>`;
+
+          return `
+          <div style="display:flex; justify-content:center; flex-wrap:wrap; gap:8px 14px; margin-top:14px; font-size:12px;">
+            ${categories.map(c => {
+            const isSelected = analyticsCategoryFilter === c.name;
+            const isHovered = analyticsHoveredCategory === c.name;
+            return `
+                <div
+                  onclick="window.toggleCategoryFilter('${c.name}')"
+                  onmouseenter="window.handleDonutHover('${c.name}')"
+                  onmouseleave="window.handleDonutLeave()"
+                  style="cursor:pointer; display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border-radius:6px; transition:all 0.15s ease; background:${isSelected ? 'var(--bg-card-subtle)' : isHovered ? 'var(--bg-card-subtle)' : 'transparent'}; border: 1px solid ${isSelected ? c.color : 'transparent'};"
+                  title="Click to filter by ${c.name}"
+                >
+                  <strong style="color:${c.color}; font-size:13px;">■</strong>
+                  <span style="color:${isSelected ? 'var(--text-primary)' : 'var(--text-muted)'}; font-weight:${isSelected ? '700' : '500'};">
+                    ${c.name} (${c.pct}%)
+                  </span>
+                  <span class="badge badge-neutral" style="font-size:10px; padding:1px 5px;">${c.count}</span>
+                </div>
+              `;
+          }).join("")}
+          </div>
+        `;
+        }
+
+
+
+        function renderAnalyticsContent(container, s) {
+          let targetVessels = s.vessels || [];
+          if (analyticsMode === "threats") {
+            const threats = targetVessels.filter(v => getVesselRiskTier(v) !== "low" || (v.threatType && v.threatType !== "Normal Transit" && v.threatType !== "Normal"));
+            if (threats.length > 0) {
+              targetVessels = threats;
+            }
+          }
+
+          const catMap = {};
+          targetVessels.forEach(v => {
+            const cat = getVesselCategory(v);
+            catMap[cat] = (catMap[cat] || 0) + 1;
+          });
+
+          const totalCategoryVessels = targetVessels.length || 1;
+          const categories = Object.keys(catMap).map(name => {
+            const count = catMap[name];
+            const pct = Math.round((count / totalCategoryVessels) * 100);
+            const color = THREAT_COLORS[name] || "#64748b";
+            return { name, count, pct, color };
+          }).sort((a, b) => b.count - a.count);
+
+          window._lastAnalyticsCategories = categories;
+          window._lastAnalyticsTotal = totalCategoryVessels;
+
+          container.innerHTML = `
+          <div class="section-header">
+            <div>
+              <h1 class="section-title">Analytics & Threat Forecast</h1>
+              <p class="section-subtitle">Real-time threat distributions, dynamic fleet categorization, and predictive security metrics across the Bay of Bengal.</p>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="badge ${s.simRunning ? "badge-ok" : "badge-warn"}">
+                ${s.simRunning ? "● Live Dynamic Sync" : "Sync Paused"}
+              </span>
+            </div>
+          </div>
+
+          <div class="grid-4" style="margin-bottom: 20px;">
+            <div class="metric-card">
+              <div class="metric-label">Total Incidents</div>
+              <div class="metric-value mono-num">${s.incidents.length}</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Alerts Raised (24h)</div>
+              <div class="metric-value mono-num">${s.alerts.length}</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Avg Response Time</div>
+              <div class="metric-value mono-num" style="color:var(--secondary);">18 min</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Monitored Vessels</div>
+              <div class="metric-value mono-num" style="color:var(--primary);">${(s.vessels || []).length}</div>
+            </div>
+          </div>
+
+          <!-- THREAT CATEGORY DISTRIBUTION PANEL -->
+          <div class="panel">
+            <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+              <h2>Threat Category Distribution</h2>
+              <div style="display:flex; gap:4px; background:var(--bg-card-subtle); padding:2px; border-radius:6px; border:1px solid var(--border-color);">
+                <button
+                  class="btn btn-sm"
+                  style="font-size:11px; padding:3px 9px; cursor:pointer; ${analyticsMode === 'threats' ? 'background:var(--primary); color:#fff; font-weight:700;' : 'background:transparent; color:var(--text-muted);'}"
+                  onclick="window.setAnalyticsMode('threats')"
+                  title="Break down only active threats"
+                >⚡ Active Threats</button>
+                <button
+                  class="btn btn-sm"
+                  style="font-size:11px; padding:3px 9px; cursor:pointer; ${analyticsMode === 'all' ? 'background:var(--primary); color:#fff; font-weight:700;' : 'background:transparent; color:var(--text-muted);'}"
+                  onclick="window.setAnalyticsMode('all')"
+                  title="Break down all vessels in fleet"
+                >🌐 Entire Fleet</button>
+              </div>
+            </div>
+            <div class="panel-body" style="position: relative;">
+              <div style="display:flex; justify-content:center; align-items:center; height:240px; position:relative;">
+                ${buildDonutSvg(categories, totalCategoryVessels)}
+                <div id="analytics-donut-hud-container" style="position:absolute; display:flex; justify-content:center; align-items:center;">
+                  ${buildDonutHud(categories, totalCategoryVessels)}
+                </div>
+              </div>
+
+              ${buildDonutLegend(categories)}
+            </div>
+          </div>
+        `;
+        }
+
+        function updateAnalyticsView(s) {
+          const container = document.getElementById("command-view-container");
+          if (!container || currentTab !== "analytics") return;
+          renderAnalyticsContent(container, s);
+        }
+
+        window.setAnalyticsMode = function (mode) {
+          analyticsMode = mode;
+          analyticsCategoryFilter = null;
+          updateAnalyticsView(window.msStore.getState());
+        };
+
+        window.toggleCategoryFilter = function (catName) {
+          if (analyticsCategoryFilter === catName) {
+            analyticsCategoryFilter = null;
+          } else {
+            analyticsCategoryFilter = catName;
+          }
+          updateAnalyticsView(window.msStore.getState());
+        };
+
+        window.handleDonutHover = function (catName) {
+          analyticsHoveredCategory = catName;
+          const hudEl = document.getElementById("analytics-donut-hud-container");
+          if (hudEl && window._lastAnalyticsCategories) {
+            hudEl.innerHTML = buildDonutHud(window._lastAnalyticsCategories, window._lastAnalyticsTotal);
+          }
+          document.querySelectorAll(".donut-slice-item").forEach(el => {
+            const cat = el.getAttribute("data-category");
+            const isTarget = (cat === catName);
+            el.style.opacity = isTarget ? "1" : "0.35";
+            el.style.strokeWidth = isTarget ? "34" : "26";
+          });
+        };
+
+        window.handleDonutLeave = function () {
+          analyticsHoveredCategory = null;
+          const hudEl = document.getElementById("analytics-donut-hud-container");
+          if (hudEl && window._lastAnalyticsCategories) {
+            hudEl.innerHTML = buildDonutHud(window._lastAnalyticsCategories, window._lastAnalyticsTotal);
+          }
+          document.querySelectorAll(".donut-slice-item").forEach(el => {
+            const cat = el.getAttribute("data-category");
+            const isSelected = (analyticsCategoryFilter === cat);
+            el.style.opacity = (analyticsCategoryFilter && !isSelected) ? "0.35" : "1";
+            el.style.strokeWidth = isSelected ? "32" : "26";
+          });
+        };
+
+        window.locateVesselOnMap = function (vesselId) {
+          renderTab("map");
+          setTimeout(() => {
+            window.openThreatDossier(vesselId);
+          }, 300);
+        };
+
+        function renderTab(tab) {
+          currentTab = tab || currentTab;
+          const container = document.getElementById("command-view-container");
+          const s = window.msStore.getState();
+
+          if (tab === "overview") {
+            const assignedVesselKeys = new Set();
+            (s.incidents || []).forEach((i) => {
+              if (i.status !== "Closed" && (i.assignedTo || (i.missionStatus && !i.missionStatus.includes("Declined")))) {
+                if (i.vesselId) assignedVesselKeys.add(String(i.vesselId).trim());
+                if (i.vesselName) assignedVesselKeys.add(String(i.vesselName).trim());
+              }
+            });
+            (s.alerts || []).forEach((a) => {
+              if (a.status === "Assigned" || a.assignedTo) {
+                if (a.vesselId) assignedVesselKeys.add(String(a.vesselId).trim());
+                if (a.vesselName) assignedVesselKeys.add(String(a.vesselName).trim());
+              }
+            });
+            (s.vessels || []).forEach((v) => {
+              if (v.assigned || v.isAssigned || v.status === "Assigned") {
+                if (v.id) assignedVesselKeys.add(String(v.id).trim());
+                if (v.vesselId) assignedVesselKeys.add(String(v.vesselId).trim());
+                if (v.name) assignedVesselKeys.add(String(v.name).trim());
+              }
+            });
+
+            const openAlerts = s.alerts.filter(a => {
+              const isAssigned = a.status === "Assigned" || a.assignedTo || (a.vesselId && assignedVesselKeys.has(String(a.vesselId).trim())) || (a.vesselName && assignedVesselKeys.has(String(a.vesselName).trim()));
+              return !isAssigned && a.status !== "Resolved" && a.status !== "False Alarm";
+            });
+            const critical = s.alerts.filter(a => {
+              const isAssigned = a.status === "Assigned" || a.assignedTo || (a.vesselId && assignedVesselKeys.has(String(a.vesselId).trim())) || (a.vesselName && assignedVesselKeys.has(String(a.vesselName).trim()));
+              return !isAssigned && a.severity === "Critical" && a.status !== "Resolved" && a.status !== "False Alarm";
+            });
+            const activeInc = (s.incidents || []).filter(i => i.status !== "Closed");
+            const highRiskVessels = s.vessels.filter(v => {
+              const isAssigned = v.assigned || v.isAssigned || v.status === "Assigned" || (v.id && assignedVesselKeys.has(String(v.id).trim())) || (v.vesselId && assignedVesselKeys.has(String(v.vesselId).trim())) || (v.name && assignedVesselKeys.has(String(v.name).trim()));
+              return !isAssigned && (v.riskScore ?? v.risk) >= 70;
+            }).sort((a, b) => (b.riskScore ?? b.risk) - (a.riskScore ?? a.risk));
+
+            container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Maritime Command Center</h1>
+                <p class="section-subtitle">Bay of Bengal · Live tactical maritime picture, autonomous threat detection, and field assignment.</p>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <button class="btn btn-primary btn-sm" onclick="window.openIncidentModal()">+ Create Incident</button>
+                <span class="badge ${s.simRunning ? "badge-ok" : "badge-warn"}">
+                  ${s.simRunning ? "Live feed active" : "Feed paused"}
+                </span>
+              </div>
+            </div>
+
+            <div class="grid-4" style="margin-bottom: 20px;">
+              <div class="metric-card">
+                <div class="metric-label">Vessels Tracked</div>
+                <div class="metric-value mono-num">${s.vessels.length}</div>
+                <div class="metric-hint">${s.vessels.filter(v => v.ais === 'lost').length} AIS lost</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Open Alerts</div>
+                <div class="metric-value mono-num" style="color: var(--status-warn);">${openAlerts.length}</div>
+                <div class="metric-hint">Awaiting confirmation</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Critical Threats</div>
+                <div class="metric-value mono-num" style="color: var(--tertiary);">${critical.length}</div>
+                <div class="metric-hint">Immediate action needed</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Active Incidents</div>
+                <div class="metric-value mono-num" style="color: var(--primary);">${activeInc.length}</div>
+                <div class="metric-hint">Field teams deployed</div>
+              </div>
+            </div>
+
+            <div class="grid-3" style="grid-template-columns: 2fr 1fr; margin-bottom: 20px;">
+              <div class="panel">
+                <div class="panel-header">
+                  <h2>Live Maritime Picture (Click vessel to view details)</h2>
+                  <span class="badge badge-neutral">Leaflet Tactical Map</span>
+                </div>
+                <div class="panel-body no-padding" style="height: 420px;">
+                  <div id="cmd-map" class="map-canvas"></div>
+                </div>
+              </div>
+
+              <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div class="panel">
+                  <div class="panel-header">
+                    <h2>Sea State & Weather</h2>
+                  </div>
+                  <div class="panel-body">
+                    <div class="keyval-row"><span class="keyval-key">Wind Speed</span><span class="keyval-val">${s.weather.windKts} kts ${s.weather.windDir}</span></div>
+                    <div class="keyval-row"><span class="keyval-key">Wave Height</span><span class="keyval-val">${s.weather.waveM} m</span></div>
+                    <div class="keyval-row"><span class="keyval-key">Visibility</span><span class="keyval-val">${s.weather.visibilityKm} km</span></div>
+                    <div class="keyval-row"><span class="keyval-key">Sea State</span><span class="keyval-val">${s.weather.seaState}</span></div>
+                    <div style="margin-top: 10px; padding: 8px; border-radius: var(--radius-md); background: var(--status-warn-bg); color: var(--status-warn); font-size: 13px;">
+                      ⚠️ ${s.weather.advisory}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="panel">
+                  <div class="panel-header">
+                    <h2>Highest Risk Vessels</h2>
+                  </div>
+                  <div class="panel-body" style="max-height: 180px; overflow-y: auto;">
+                    ${highRiskVessels.map(v => `
+                      <div style="padding: 6px 0; border-bottom: 1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="window.openThreatDossier('${v.id}')">
+                        <div>
+                          <strong style="font-size:14px; color:var(--primary);">${v.name}</strong>
+                          <span style="font-size:12px; color:var(--text-muted); display:block;">${v.type} · ${v.speed} kts</span>
+                        </div>
+                        <span class="badge ${(v.riskScore ?? v.risk) >= 80 ? 'badge-critical' : (v.riskScore ?? v.risk) >= 70 ? 'badge-danger' : (v.riskScore ?? v.risk) >= 35 ? 'badge-warn' : 'badge-ok'}">${(v.riskScore ?? v.risk)}/100</span>
+                      </div>
+                    `).join("")}
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+
+            setTimeout(() => {
+              window.MS_MAP.initMap("cmd-map", { zoom: 6 });
+            }, 50);
+
+          } else if (tab === "map") {
+            container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Live Tactical Maritime Map</h1>
+                <p class="section-subtitle">Real-time Bay of Bengal digital twin displaying monitored vessels, security geofences, active incident locations, and field responder craft.</p>
+              </div>
+            </div>
+            <div class="panel" style="height: calc(100vh - 160px);">
+              <div class="panel-body no-padding" style="height: 100%;">
+                <div id="full-map" class="map-canvas" style="height: 100%; border-radius: var(--radius-lg);"></div>
+              </div>
+            </div>
+          `;
+            setTimeout(() => {
+              window.MS_MAP.initMap("full-map", { zoom: 7 });
+            }, 50);
+
+          } else if (tab === "alerts") {
+            container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Threat Alerts & Detection Feeds</h1>
+                <p class="section-subtitle">Real-time ML anomaly flags, rule violation explanations, and tactical command confirmation workflows.</p>
+              </div>
+              <div style="display:flex; gap:10px;">
+                <button class="btn btn-secondary btn-sm" onclick="renderTab('alerts')">↻ Refresh Alerts</button>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Timestamp</th>
+                      <th>Severity</th>
+                      <th>Target Vessel</th>
+                      <th>Triggered Threat Logic</th>
+                      <th>Surveillance Zone</th>
+                      <th>Threat Score</th>
+                      <th>Rule Violations Detected</th>
+                      <th style="text-align:right;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${(() => {
+                const classifyThreat = window.classifyThreat || (() => "Elevated Threat");
+                const cleanReason = (r) => (typeof r === "string" ? r.replace(/\s*\(\+\d+\s*pts\)/gi, "").trim() : "");
+
+                const mapVessels = s.vessels || [];
+                const rawAlerts = s.alerts || [];
+
+                // Robust collection of all assigned threat vessel identifiers
+                const assignedVesselKeys = new Set();
+                (s.incidents || []).forEach((i) => {
+                  if (i.status !== "Closed" && (i.assignedTo || (i.missionStatus && !i.missionStatus.includes("Declined")))) {
+                    if (i.vesselId) assignedVesselKeys.add(String(i.vesselId).trim());
+                    if (i.vesselName) assignedVesselKeys.add(String(i.vesselName).trim());
+                  }
+                });
+                (s.alerts || []).forEach((a) => {
+                  if (a.status === "Assigned" || a.assignedTo) {
+                    if (a.vesselId) assignedVesselKeys.add(String(a.vesselId).trim());
+                    if (a.vesselName) assignedVesselKeys.add(String(a.vesselName).trim());
+                  }
+                });
+                (s.vessels || []).forEach((v) => {
+                  if (v.assigned || v.isAssigned || v.status === "Assigned") {
+                    if (v.id) assignedVesselKeys.add(String(v.id).trim());
+                    if (v.vesselId) assignedVesselKeys.add(String(v.vesselId).trim());
+                    if (v.name) assignedVesselKeys.add(String(v.name).trim());
+                  }
+                });
+
+                let combinedAlerts = rawAlerts.map(a => {
+                  const v = mapVessels.find(x => x.id === a.vesselId || x.vesselId === a.vesselId || x.name === a.vesselName) || {};
+                  const score = typeof v.riskScore === "number" ? v.riskScore : (a.risk || 50);
+                  const threatType = v.threatType || a.threatType || "Elevated Threat";
+                  const severity = score >= 80 ? "Critical" : score >= 70 ? "High" : score >= 35 ? "Medium" : "Low";
+                  const rawBehaviors = [...(a.behaviours || []), ...(v.behaviours || []), ...(v.reasons || [])];
+                  const behaviours = Array.from(new Set(rawBehaviors.map(cleanReason).filter(Boolean)));
+                  const lat = v.lat ?? a.lat ?? 15.0;
+                  const lng = v.lng ?? a.lng ?? 85.0;
+                  const zoneName = a.zoneName || (v.name ? `${v.destination || 'Bay of Bengal'} (${lat}°N, ${lng}°E)` : "Surveillance Grid");
+
+                  return {
+                    ...a,
+                    vesselId: v.id || v.vesselId || a.vesselId,
+                    vesselName: v.name || a.vesselName,
+                    vesselType: v.type || "Vessel",
+                    lat,
+                    lng,
+                    zoneName,
+                    risk: score,
+                    severity,
+                    threatType,
+                    behaviours
+                  };
+                });
+
+                // STEP 5: Add active alerts ONLY for vessels evaluated as HIGH by ML that are NOT assigned
+                mapVessels.forEach(v => {
+                  const isVesselAssigned = v.assigned || v.isAssigned || v.status === "Assigned" ||
+                    (v.id && assignedVesselKeys.has(String(v.id).trim())) ||
+                    (v.vesselId && assignedVesselKeys.has(String(v.vesselId).trim())) ||
+                    (v.name && assignedVesselKeys.has(String(v.name).trim()));
+                  if (isVesselAssigned) return;
+
+                  const mlScore = typeof v.riskScore === "number" ? v.riskScore : (v.risk ?? 0);
+                  const level = v.level || (mlScore >= 70 ? "HIGH" : mlScore >= 35 ? "MEDIUM" : "LOW");
+                  if (level === "HIGH") {
+                    const exists = combinedAlerts.some(a => a.vesselId === v.id || a.vesselId === v.vesselId || a.vesselName === v.name);
+                    if (!exists) {
+                      const threatType = v.threatType || "High Threat Intrusion";
+                      const severity = mlScore >= 80 ? "Critical" : "High";
+                      const behaviours = Array.from(new Set([...(v.behaviours || []), ...(v.reasons || [])].map(cleanReason).filter(Boolean)));
+                      combinedAlerts.push({
+                        id: "AL-" + (v.id || v.vesselId),
+                        ts: v.lastUpdate || new Date().toISOString(),
+                        vesselId: v.id || v.vesselId,
+                        vesselName: v.name,
+                        vesselType: v.type,
+                        lat: v.lat,
+                        lng: v.lng,
+                        zoneName: `${v.destination || 'Bay of Bengal Sector'} (${v.lat}°N, ${v.lng}°E)`,
+                        threatType,
+                        severity,
+                        risk: mlScore,
+                        status: "New",
+                        behaviours
+                      });
+                    }
+                  }
+                });
+
+                // Filter out non-threats AND REMOVE assigned/resolved threats from Active Threat Alerts table
+                const activeThreatsOnly = combinedAlerts.filter(a => {
+                  if (a.status === "Assigned" || a.assignedTo || a.status === "Resolved" || a.status === "False Alarm") return false;
+                  if (a.vesselId && assignedVesselKeys.has(String(a.vesselId).trim())) return false;
+                  if (a.vesselName && assignedVesselKeys.has(String(a.vesselName).trim())) return false;
+                  return a.risk >= 35 && a.severity !== "Low";
+                });
+
+                if (activeThreatsOnly.length === 0) {
+                  return `
+                          <tr>
+                            <td colspan="8" style="text-align:center; padding:36px; color:var(--text-muted); font-size:13px;">
+                              <span>🛡️</span>
+                              <div style="font-weight:600; margin-top:6px; color:var(--text-main);">No unassigned threat alerts in queue.</div>
+                              <p style="margin-top:4px; font-size:12px;">All active threats have been assigned to field units or resolved.</p>
+                            </td>
+                          </tr>
+                        `;
+                }
+
+                return activeThreatsOnly.sort((a, b) => (b.risk || 0) - (a.risk || 0)).map(a => {
+                  const sevBadgeClass = a.severity === 'Critical' ? 'badge-critical' : a.severity === 'High' ? 'badge-danger' : a.severity === 'Medium' ? 'badge-warn' : 'badge-ok';
+                  const scoreColor = a.risk >= 80 ? 'var(--tertiary)' : a.risk >= 70 ? 'var(--status-danger)' : a.risk >= 35 ? 'var(--status-warn)' : '#10b981';
+                  return `
+                        <tr>
+                          <td><span class="mono">${window.MS_UI.fmtTime(a.ts)}</span></td>
+                          <td><span class="badge ${sevBadgeClass}">${a.severity.toUpperCase()}</span></td>
+                          <td><strong style="cursor:pointer; color:var(--primary);" onclick="window.openThreatDossier('${a.vesselId}')">${a.vesselName}</strong><br><span class="mono" style="font-size:10px; color:var(--text-muted);">${a.vesselType || ''}</span></td>
+                          <td>${a.threatType}</td>
+                          <td>${a.zoneName}</td>
+                          <td><strong style="color:${scoreColor};">${a.risk}/100</strong></td>
+                          <td>
+                            ${a.behaviours && a.behaviours.length ? a.behaviours.map(b => `<span class="badge badge-danger" style="margin-right:4px; margin-bottom:2px; display:inline-block;">${b}</span>`).join("") : `<span class="badge badge-warn">Elevated Risk</span>`}
+                          </td>
+                          <td style="text-align:right;">
+                            <button class="btn btn-secondary btn-sm" onclick="window.openThreatDossier('${a.vesselId}')">Dossier</button>
+                            <button class="btn btn-primary btn-sm" onclick="window.openDispatchModal('${a.id}')">Assign</button>
+                            <button class="btn btn-secondary btn-sm" onclick="window.msStore.rejectAlert('${a.id}'); renderTab('alerts');">Dismiss</button>
+                          </td>
+                        </tr>
+                      `;
+                }).join("");
+              })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+          } else if (tab === "vessels") {
+            container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Tracked Vessel Fleet</h1>
+                <p class="section-subtitle">Real-time AIS and coastal radar telemetry catalogue for all ships in the surveillance grid.</p>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Vessel Name</th>
+                      <th>Flag &amp; Type</th>
+                      <th>Speed / Heading</th>
+                      <th>Coordinates</th>
+                      <th>ML Model Risk Score</th>
+                      <th>Rule Violations Detected</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${s.vessels.map(v => {
+              const score = typeof v.riskScore === "number" ? v.riskScore : (v.risk ?? 0);
+              const cleanReason = (r) => (typeof r === "string" ? r.replace(/\s*\(\+\d+\s*pts\)/gi, "").trim() : "");
+              const reasons = Array.from(new Set([...(v.behaviours || []), ...(v.reasons || [])].map(cleanReason).filter(Boolean)));
+
+              return `
+                        <tr>
+                          <td><strong style="cursor:pointer; color:var(--primary);" onclick="window.openThreatDossier('${v.id}')">${v.name}</strong><br><span class="mono" style="font-size:10px; color:var(--text-muted);">MMSI: ${v.mmsi}</span></td>
+                          <td>${v.flag} · ${v.type}</td>
+                          <td>${v.speed} kts · ${v.course || v.heading || 0}°</td>
+                          <td><span class="mono">${v.lat}°N, ${v.lng}°E</span></td>
+                          <td><span class="badge ${score >= 80 ? 'badge-critical' : score >= 70 ? 'badge-danger' : score >= 35 ? 'badge-warn' : 'badge-ok'}">${score}/100</span></td>
+                          <td>
+                            ${reasons.length ? reasons.map(b => `<span class="badge ${score >= 70 ? 'badge-danger' : 'badge-neutral'}" style="margin-right:4px; margin-bottom:2px; display:inline-block;">${b}</span>`).join("") : `<span class="badge badge-ok">Nominal</span>`}
+                          </td>
+                        </tr>
+                      `;
+            }).join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+          } else if (tab === "incidents") {
+            const activeIncidents = s.incidents.filter(i => i.status !== "Closed");
+
+            container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Incident Response Operations</h1>
+                <p class="section-subtitle">Track active tactical interceptions, manage field officer assignments, and coordinate on-scene response.</p>
+              </div>
+              <div style="display:flex; gap:10px;">
+                <button class="btn btn-primary btn-sm" onclick="window.openIncidentModal()">+ Create Incident</button>
+              </div>
+            </div>
+
+            ${activeIncidents.length === 0 ? `
+              <div class="panel" style="padding:32px; text-align:center;">
+                <p style="font-size:15px; color:var(--text-muted);">No active tactical operations currently underway. All sectors nominal.</p>
+              </div>
+            ` : `
+              <div class="grid-2">
+                ${activeIncidents.map(inc => `
+                  <div class="panel">
+                    <div class="panel-header">
+                      <h2>${inc.id} · ${inc.category}</h2>
+                      <span class="badge ${window.MS_UI.getBadgeClass(inc.status)}">${inc.status}</span>
+                    </div>
+                    <div class="panel-body">
+                      <p style="font-weight:700; font-size:14px;">${inc.title}</p>
+                      <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">${inc.description}</p>
+                      
+                      <div style="margin-top:14px;">
+                        <div class="keyval-row"><span class="keyval-key">Vessel Contact</span><span class="keyval-val">${inc.vesselName}</span></div>
+                        <div class="keyval-row"><span class="keyval-key">Risk Score</span><span class="keyval-val" style="color:var(--tertiary); font-weight:700;">${inc.risk}/100 (${inc.riskLevel})</span></div>
+                        <div class="keyval-row"><span class="keyval-key">Assigned Officer</span><span class="keyval-val" style="font-weight:700; color:var(--primary);">${s.users.find(u => u.id === inc.assignedTo)?.name || 'Unassigned'}</span></div>
+                        <div class="keyval-row"><span class="keyval-key">Mission Status</span><span class="keyval-val badge badge-primary">${inc.missionStatus || 'Underway'}</span></div>
+                        ${inc.closedAt ? `<div class="keyval-row"><span class="keyval-key">Closure Timestamp</span><span class="keyval-val">${window.MS_UI.fmtTime(inc.closedAt)}</span></div>` : ''}
+                      </div>
+
+                      <div style="margin-top:16px;">
+                        <p style="font-size:13px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">Operational Timeline</p>
+                        <div class="timeline-list">
+                          ${(inc.timeline || []).map(t => `
+                            <div class="timeline-item">
+                              <span class="timeline-dot"></span>
+                              <div style="display:flex; justify-content:space-between;">
+                                <strong style="font-size:14px;">${t.status}</strong>
+                                <span style="font-size:12px; color:var(--text-muted);">${window.MS_UI.fmtTime(t.ts)}</span>
+                              </div>
+                              <p style="font-size:13px; color:var(--text-muted); margin-top:2px;">${t.note} (${t.actor})</p>
+                            </div>
+                          `).join("")}
+                        </div>
+                      </div>
+
+                      ${inc.fieldNotes && inc.fieldNotes.length ? `
+                        <div style="margin-top:14px;">
+                          <p style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">Field Observations</p>
+                          <ul style="font-size:12px; padding-left:16px; color:var(--text-main);">
+                            ${inc.fieldNotes.map(n => `<li>${n}</li>`).join("")}
+                          </ul>
+                        </div>
+                      ` : ''}
+
+                      ${inc.evidence && inc.evidence.length ? `
+                        <div style="margin-top:12px;">
+                          <p style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">Attached Case Assets</p>
+                          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            ${inc.evidence.map(e => `<span class="badge badge-neutral" style="font-size:11px;">📄 ${e}</span>`).join("")}
+                          </div>
+                        </div>
+                      ` : ''}
+
+                      ${inc.status !== 'Closed' ? `
+                        <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap;">
+                          <button class="btn btn-secondary btn-sm" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Interception Authorized', 'Command approved tactical boarding & dispatched additional patrol support.'); renderTab('incidents');">
+                            ⚡ Authorize Boarding / Support
+                          </button>
+                          <button class="btn btn-primary btn-sm" onclick="window.msStore.closeIncident('${inc.id}', 'Incident Resolved — Field boarding complete, vessel cleared and escorted out.'); renderTab('incidents');">
+                            ✓ Mark Incident Resolved &amp; Archive
+                          </button>
+                        </div>
+                      ` : `
+                        <div style="margin-top:16px; text-align:right;">
+                          <span class="badge badge-ok" style="font-size:13px;">✓ Incident Resolved &amp; Archived</span>
+                        </div>
+                      `}
+                    </div>
+                  </div>
+                `).join("")}
+              </div>
+            `}
+          `;
+          } else if (tab === "history") {
+            const incFilter = window.cmdIncFilter || "all";
+            const searchKw = window.cmdIncSearch || "";
+            const stats = window.msStore.getIncidentStats();
+            const incidents = window.msStore.getIncidentHistory("all", incFilter, "all", searchKw);
+
+            container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Incident History &amp; Compliance Archives</h1>
+                <p class="section-subtitle">Platform-wide historical case audit, operational response metrics, officer dispatches, and evidence vault records.</p>
+              </div>
+            </div>
+
+            <div class="grid-4" style="margin-bottom: 20px;">
+              <div class="metric-card">
+                <div class="metric-label">Total Platform Incidents</div>
+                <div class="metric-value mono-num">${stats.total}</div>
+                <div class="metric-hint">Historical &amp; Active Cases</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Resolved &amp; Archived</div>
+                <div class="metric-value mono-num" style="color:var(--status-ok);">${stats.resolved}</div>
+                <div class="metric-hint">${stats.resolutionRatePct}% Resolution Clearance Rate</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Active Interceptions</div>
+                <div class="metric-value mono-num" style="color:var(--status-warn);">${stats.active}</div>
+                <div class="metric-hint">Underway in Field</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Avg. Response Time</div>
+                <div class="metric-value mono-num" style="color:var(--primary);">${stats.avgResponseMins} Mins</div>
+                <div class="metric-hint">Alert to Patrol Dispatch</div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <h2>Platform Historical Incident Dossiers</h2>
+                <div style="display:flex; gap:10px; align-items:center;">
+                  <input type="text" class="input-field" placeholder="Search vessel, ID, title..." value="${searchKw}" oninput="window.cmdIncSearch = this.value; window.renderTab('history');" style="width:240px; font-size:13px;" />
+                  <select class="select-field" style="width:160px; font-size:13px;" onchange="window.cmdIncFilter = this.value; window.renderTab('history');">
+                    <option value="all" ${incFilter === 'all' ? 'selected' : ''}>All Statuses</option>
+                    <option value="active" ${incFilter === 'active' ? 'selected' : ''}>Active / In Progress</option>
+                    <option value="closed" ${incFilter === 'closed' ? 'selected' : ''}>Closed &amp; Archived</option>
+                  </select>
+                </div>
+              </div>
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Incident ID</th>
+                      <th>Vessel / Title</th>
+                      <th>Category</th>
+                      <th>Risk Score</th>
+                      <th>Assigned Unit</th>
+                      <th>Detected Timestamp</th>
+                      <th>Status</th>
+                      <th style="text-align:right;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${incidents.map(inc => {
+              const officer = s.users.find(u => u.id === inc.assignedTo)?.name || 'Unassigned';
+              return `
+                        <tr>
+                          <td><span class="mono"><strong>${inc.id}</strong></span></td>
+                          <td>
+                            <strong>${inc.vesselName}</strong><br>
+                            <span style="font-size:12px; color:var(--text-muted);">${inc.title}</span>
+                          </td>
+                          <td>${inc.category}</td>
+                          <td><span class="badge ${inc.risk >= 80 ? 'badge-critical' : inc.risk >= 70 ? 'badge-danger' : 'badge-warn'}">${inc.risk}/100</span></td>
+                          <td>${officer}</td>
+                          <td><span style="font-size:12px; color:var(--text-muted);">${window.MS_UI.fmtTime(inc.detectedAt)}</span></td>
+                          <td><span class="badge ${window.MS_UI.getBadgeClass(inc.status)}">${inc.status}</span></td>
+                          <td style="text-align:right;">
+                            <button class="btn btn-secondary btn-sm" onclick="window.viewIncidentDossier('${inc.id}')">Inspect Dossier</button>
+                          </td>
+                        </tr>
+                      `;
+            }).join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+          } else if (tab === "analytics") {
+            renderAnalyticsContent(container, s);
+          } else if (tab === "profile") {
+            container.innerHTML = window.MS_UI.getProfileHtml("command");
+          }
+        }
+        window.renderTab = renderTab;
+
+        /* ---------------- Modal Helpers ---------------- */
+        window.openDispatchModal = function (alertId) {
+          const s = window.msStore.getState();
+          const alert = s.alerts.find(a => a.id === alertId);
+          if (!alert) return;
+
+          document.getElementById("dispatch-alert-id").value = alertId;
+          document.getElementById("dispatch-alert-title").textContent = `${alert.threatType} — ${alert.vesselName}`;
+          document.getElementById("dispatch-alert-risk").textContent = `${alert.severity} (${alert.risk}/100)`;
+          document.getElementById("dispatch-alert-risk").className = `badge ${alert.severity === 'Critical' ? 'badge-critical' : 'badge-danger'}`;
+          document.getElementById("dispatch-alert-desc").textContent = `Detected in zone ${alert.zoneName} at ${window.MS_UI.fmtTime(alert.ts)}.`;
+
+          const officerSelect = document.getElementById("dispatch-officer-select");
+          officerSelect.innerHTML = s.users
+            .filter(u => u.role === "field")
+            .map(u => `<option value="${u.id}">${u.name} — ${u.region} [${u.availability ? u.availability.toUpperCase() : 'AVAILABLE'}]</option>`)
+            .join("");
+
+          document.getElementById("dispatch-modal").classList.add("open");
+        };
+
+        window.openIncidentModal = function () {
+          const s = window.msStore.getState();
+          const officerSelect = document.getElementById("new-inc-officer");
+          officerSelect.innerHTML = s.users
+            .filter(u => u.role === "field")
+            .map(u => `<option value="${u.id}">${u.name} — ${u.region} [${u.availability ? u.availability.toUpperCase() : 'AVAILABLE'}]</option>`)
+            .join("");
+          document.getElementById("incident-modal").classList.add("open");
+        };
+
+        window.openVesselModal = function (vesselId) {
+          const s = window.msStore.getState();
+          const v = s.vessels.find(x => (x.vesselId || x.id) === vesselId || x.id === vesselId);
+          if (!v) return;
+
+          const score = v.riskScore ?? v.risk ?? 0;
+          const level = v.level || (score > 70 ? "HIGH" : score > 30 ? "MEDIUM" : "LOW");
+          const threatType = v.threatType || (score > 70 ? "High Threat Intrusion" : score > 30 ? "Anomalous Behavior" : "Normal");
+          const reasonsList = v.reasons && v.reasons.length ? v.reasons : (v.behaviours || []);
+          const levelColor = level === "HIGH" ? "var(--tertiary)" : level === "MEDIUM" ? "#eab308" : "var(--secondary)";
+
+          document.getElementById("vessel-modal-title").textContent = `${v.name || v.vesselId} (ID: ${v.vesselId || v.id})`;
+          document.getElementById("vessel-modal-body").innerHTML = `
+          <div style="background:var(--bg-card-subtle); padding:14px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-size:13px; font-weight:700; text-transform:uppercase; color:var(--text-muted);">Tactical Threat Level</div>
+                <div style="font-size:18px; font-weight:800; color:${levelColor}; margin-top:2px;">${threatType}</div>
+              </div>
+              <span class="badge" style="font-size:15px; background:${levelColor}; color:#ffffff; font-weight:700;">${level} (${score} / 100)</span>
+            </div>
+            <div class="risk-meter-bar" style="margin-top:10px;">
+              <div class="risk-meter-fill" style="width:${score}%; background:${levelColor};"></div>
+            </div>
+          </div>
+
+          <div class="keyval-row"><span class="keyval-key">Vessel Type & Flag</span><span class="keyval-val">${v.type || 'Vessel'} (${v.flag || 'Unknown'})</span></div>
+          <div class="keyval-row"><span class="keyval-key">Telemetry Speed</span><span class="keyval-val mono">${v.speed} kts</span></div>
+          <div class="keyval-row"><span class="keyval-key">Heading Course</span><span class="keyval-val mono">${v.heading ?? v.course}°</span></div>
+          <div class="keyval-row"><span class="keyval-key">Coordinates</span><span class="keyval-val mono">${v.lat}°N, ${v.lng}°E</span></div>
+          <div class="keyval-row"><span class="keyval-key">AIS Signal Status</span><span class="keyval-val badge ${v.aisOff ? 'badge-critical' : 'badge-ok'}">${v.aisOff ? 'TRANSPONDER OFF' : 'ACTIVE'}</span></div>
+          <div class="keyval-row"><span class="keyval-key">Restricted Zone Entry</span><span class="keyval-val ${v.inRestrictedZone ? 'mono' : ''}" style="color:${v.inRestrictedZone ? '#ef4444' : 'inherit'}; font-weight:${v.inRestrictedZone ? '700' : 'normal'}">${v.inRestrictedZone ? 'BREACH DETECTED ⚠️' : 'Cleared'}</span></div>
+          <div class="keyval-row"><span class="keyval-key">High-Risk Area Proximity</span><span class="keyval-val" style="color:${v.nearHighRiskArea ? '#f97316' : 'inherit'}; font-weight:${v.nearHighRiskArea ? '700' : 'normal'}">${v.nearHighRiskArea ? 'INSIDE SECTOR ⚠️' : 'Cleared'}</span></div>
+
+          <div style="margin-top:14px;">
+            <span class="form-label">Threat Reasoning Breakdown:</span>
+            <div style="margin-top:6px; display:flex; flex-direction:column; gap:6px;">
+              ${reasonsList && reasonsList.length
+              ? reasonsList.map(b => `<div style="background:#fef2f2; border:1px solid #fecaca; padding:6px 10px; border-radius:6px; font-size:14px; color:#dc2626; display:flex; align-items:center; gap:6px;"><span>⚠️</span> <strong>${b}</strong></div>`).join("")
+              : `<div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:6px 10px; border-radius:6px; font-size:14px; color:#16a34a;">✓ Standard navigation pattern verified</div>`}
+            </div>
+          </div>
+        `;
+          document.getElementById("vessel-modal").classList.add("open");
+        };
+
+        // Form Submissions
+        document.getElementById("dispatch-form").addEventListener("submit", (e) => {
+          e.preventDefault();
+          const alertId = document.getElementById("dispatch-alert-id").value;
+          const officerId = document.getElementById("dispatch-officer-select").value;
+          window.msStore.confirmAlert(alertId, officerId);
+          document.getElementById("dispatch-modal").classList.remove("open");
+          renderTab("incidents");
+        });
+
+        document.getElementById("incident-form").addEventListener("submit", (e) => {
+          e.preventDefault();
+          const title = document.getElementById("new-inc-title").value;
+          const category = document.getElementById("new-inc-cat").value;
+          const vesselName = document.getElementById("new-inc-vessel").value;
+          const riskLevel = document.getElementById("new-inc-level").value;
+          const officerId = document.getElementById("new-inc-officer").value;
+          const lat = document.getElementById("new-inc-lat").value;
+          const lng = document.getElementById("new-inc-lng").value;
+          const desc = document.getElementById("new-inc-desc").value;
+          const risk = riskLevel === 'Critical' ? 90 : riskLevel === 'High' ? 75 : 55;
+
+          window.msStore.createIncident(title, category, vesselName, riskLevel, risk, officerId, lat, lng, desc);
+          document.getElementById("incident-modal").classList.remove("open");
+          document.getElementById("incident-form").reset();
+          renderTab("incidents");
+        });
+
+        // Smooth state subscriber (prevents destroying & re-creating the map DOM on simulation ticks)
+        window.msStore.subscribe((s) => {
+          // Dynamic analytics update
+          if (currentTab === "analytics") {
+            updateAnalyticsView(s);
+          }
+        });
+
+        window.viewIncidentDossier = function (incId) {
+          const s = window.msStore.getState();
+          const inc = s.incidents.find(i => i.id === incId);
+          if (!inc) return;
+
+          const officer = s.users.find(u => u.id === inc.assignedTo)?.name || 'Unassigned';
+          document.getElementById("inc-dossier-title").textContent = `${inc.id} · ${inc.vesselName}`;
+          document.getElementById("inc-dossier-body").innerHTML = `
+          <div style="margin-bottom:14px;">
+            <span class="badge ${window.MS_UI.getBadgeClass(inc.status)}" style="font-size:13px;">${inc.status}</span>
+            <span class="badge ${inc.risk >= 80 ? 'badge-critical' : 'badge-warn'}" style="margin-left:6px; font-size:13px;">Threat Score: ${inc.risk}/100</span>
+          </div>
+          <h4 style="font-size:16px; font-weight:700; margin-bottom:4px;">${inc.title}</h4>
+          <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">${inc.description}</p>
+          
+          <div class="keyval-row"><span class="keyval-key">Category</span><span class="keyval-val">${inc.category}</span></div>
+          <div class="keyval-row"><span class="keyval-key">Assigned Officer</span><span class="keyval-val" style="font-weight:700; color:var(--primary);">${officer}</span></div>
+          <div class="keyval-row"><span class="keyval-key">Coordinates</span><span class="keyval-val mono">${inc.lat}°N, ${inc.lng}°E</span></div>
+          <div class="keyval-row"><span class="keyval-key">Detected At</span><span class="keyval-val">${window.MS_UI.fmtTime(inc.detectedAt)}</span></div>
+          ${inc.closedAt ? `<div class="keyval-row"><span class="keyval-key">Closed At</span><span class="keyval-val">${window.MS_UI.fmtTime(inc.closedAt)}</span></div>` : ''}
+
+          <div style="margin-top:16px;">
+            <h5 style="font-size:13px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">Chronological Timeline</h5>
+            <div class="timeline-list">
+              ${(inc.timeline || []).map(t => `
+                <div class="timeline-item">
+                  <span class="timeline-dot"></span>
+                  <div style="display:flex; justify-content:space-between;">
+                    <strong style="font-size:13px;">${t.status}</strong>
+                    <span style="font-size:11px; color:var(--text-muted);">${window.MS_UI.fmtTime(t.ts)}</span>
+                  </div>
+                  <p style="font-size:12px; color:var(--text-muted); margin-top:2px;">${t.note} (${t.actor})</p>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+
+          ${inc.fieldNotes && inc.fieldNotes.length ? `
+            <div style="margin-top:16px;">
+              <h5 style="font-size:13px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">Field Notes &amp; Observations</h5>
+              <ul style="font-size:13px; padding-left:18px; color:var(--text-main);">
+                ${inc.fieldNotes.map(n => `<li>${n}</li>`).join("")}
+              </ul>
+            </div>
+          ` : ''}
+
+          ${inc.evidence && inc.evidence.length ? `
+            <div style="margin-top:16px;">
+              <h5 style="font-size:13px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">Attached Mission Evidence</h5>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                ${inc.evidence.map(e => `<span class="badge badge-neutral" style="font-size:12px;">📄 ${e}</span>`).join("")}
+              </div>
+            </div>
+          ` : ''}
+        `;
+          document.getElementById("inc-dossier-modal").classList.add("open");
+        };
+
+        window.MS_UI.attachLayoutEvents(renderTab);
+        renderTab("overview");
+      });
+    </script>
+</body>
+
+</html>

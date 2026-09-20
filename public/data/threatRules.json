@@ -1,0 +1,47 @@
+[
+  {
+    "id": "TR-01",
+    "name": "Dark Activity / Smuggling",
+    "condition": "AIS OFF + Restricted Zone",
+    "weight": 35,
+    "description": "The vessel has turned off its tracking system while entering a restricted or sensitive maritime area, which is a strong sign of intentional concealment, often linked to smuggling or illegal operations.",
+    "status": "active",
+    "role": "explanation"
+  },
+  {
+    "id": "TR-02",
+    "name": "Suspicious Loitering",
+    "condition": "Loitering + High Risk Area",
+    "weight": 25,
+    "description": "The vessel is staying idle or moving very slowly near a high-risk zone (such as ports or strategic assets), indicating possible surveillance, waiting activity, or suspicious intent.",
+    "status": "active",
+    "role": "explanation"
+  },
+  {
+    "id": "TR-03",
+    "name": "Illegal Fishing",
+    "condition": "Speed < 5 knots + Restricted Zone",
+    "weight": 20,
+    "description": "The vessel is moving at very low speed inside a restricted or protected zone, which typically indicates fishing activity where it is not allowed.",
+    "status": "active",
+    "role": "explanation"
+  },
+  {
+    "id": "TR-04",
+    "name": "Border Intrusion",
+    "condition": "Route Deviation + Near Border",
+    "weight": 25,
+    "description": "The vessel has deviated from its normal route and is heading toward or crossing an international maritime boundary, suggesting unauthorized entry or intrusion.",
+    "status": "active",
+    "role": "explanation"
+  },
+  {
+    "id": "TR-05",
+    "name": "Anomalous Behavior",
+    "condition": "Speed Change > 30 knots + High Risk Area",
+    "weight": 20,
+    "description": "The vessel shows a sudden and unusual spike or drop in speed while operating near a sensitive area, which may indicate evasive maneuvers, pursuit, or abnormal operational behavior.",
+    "status": "active",
+    "role": "explanation"
+  }
+]

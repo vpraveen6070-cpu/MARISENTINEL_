@@ -1,0 +1,82 @@
+[
+  {
+    "id": "ZN-001",
+    "name": "Visakhapatnam Naval Anchorage",
+    "classification": "Critical",
+    "lat": 17.68,
+    "lng": 83.38,
+    "radiusKm": 28,
+    "status": "active",
+    "description": "Eastern Naval Command core operational anchorage & submarine channel."
+  },
+  {
+    "id": "ZN-002",
+    "name": "Kakinada Offshore Energy Hub",
+    "classification": "High Risk",
+    "lat": 16.85,
+    "lng": 82.45,
+    "radiusKm": 32,
+    "status": "active",
+    "description": "Natural gas extraction platforms and KG-D6 deepwater drilling rigs."
+  },
+  {
+    "id": "ZN-003",
+    "name": "Paradip Strategic Approach",
+    "classification": "Restricted",
+    "lat": 20.2,
+    "lng": 86.75,
+    "radiusKm": 35,
+    "status": "active",
+    "description": "Commercial deepwater port and strategic crude terminal single point mooring."
+  },
+  {
+    "id": "ZN-004",
+    "name": "Dhamra River Delta Sanctuary",
+    "classification": "Monitoring",
+    "lat": 20.75,
+    "lng": 87.1,
+    "radiusKm": 24,
+    "status": "active",
+    "description": "Ecological reserve & monitored coastal passage."
+  },
+  {
+    "id": "ZN-005",
+    "name": "Chennai Outer Roadstead",
+    "classification": "Restricted",
+    "lat": 13.15,
+    "lng": 80.38,
+    "radiusKm": 22,
+    "status": "active",
+    "description": "Major container corridor and naval vessel escort route."
+  },
+  {
+    "id": "ZN-006",
+    "name": "Sundarbans Maritime Border",
+    "classification": "Critical",
+    "lat": 21.55,
+    "lng": 89.25,
+    "radiusKm": 40,
+    "status": "active",
+    "description": "Transboundary international maritime boundary line (IMBL)."
+  },
+  {
+    "id": "ZN-007",
+    "name": "Gopalpur Defence Test Range",
+    "classification": "Critical",
+    "lat": 19.15,
+    "lng": 85.05,
+    "radiusKm": 30,
+    "status": "active",
+    "description": "Integrated Test Range surface-to-air missile testing corridor."
+  },
+  {
+    "id": "ZN-008",
+    "name": "Port Blair Security Corridor",
+    "classification": "High Risk",
+    "lat": 11.68,
+    "lng": 92.78,
+    "radiusKm": 36,
+    "status": "active",
+    "description": "Andaman & Nicobar tri-service command maritime transit sector."
+  }
+]

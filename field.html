@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Field Officer Console · MARISENTINEL</title>
+  <meta name="description" content="Field officer tactical mission assignments, maps, evidence uploads and reporting.">
+  
+  <link rel="icon" type="image/svg+xml" href="public/favicon.svg">
+  <link rel="icon" type="image/x-icon" href="public/favicon.ico">
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <div id="shell-sidebar-slot"></div>
+
+    <div class="app-main">
+      <div id="shell-header-slot"></div>
+
+      <main class="app-content" id="field-view-container">
+        <!-- Dynamic Subviews -->
+      </main>
+    </div>
+  </div>
+
+  <!-- Upload Evidence Modal -->
+  <div id="evidence-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Upload Field Evidence Document</h3>
+        <button class="toast-close" onclick="document.getElementById('evidence-modal').classList.remove('open')">&times;</button>
+      </div>
+      <form id="upload-evidence-form">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Evidence Type</label>
+            <select id="evidence-type" class="select-field">
+              <option value="Photo (FLIR / Optical)">Photo (FLIR / Optical Camera)</option>
+              <option value="Video (Drone / Bodycam)">Video (Drone / Bodycam Feed)</option>
+              <option value="Sensor Log (AIS / Radar)">Sensor Log (AIS / Radar Scan)</option>
+              <option value="Document (Cargo Manifest)">Document (Cargo Manifest Scan)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">File / Asset Title</label>
+            <input type="text" id="evidence-name" class="input-field" placeholder="e.g. stern-hull-inspection.jpg" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Field Notes & Observations</label>
+            <input type="text" id="evidence-notes" class="input-field" placeholder="e.g. Transponder power cable disconnected manually." required />
+          </div>
+          <div style="border: 2px dashed var(--border-color); border-radius: var(--radius-md); padding: 16px; text-align: center; color: var(--text-muted); background: var(--bg-card-subtle);">
+            📸 Asset Stored Locally in Mission Evidence Vault
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('evidence-modal').classList.remove('open')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Attach Evidence to Case</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/services/ruleEngine.js"></script>
+  <script src="js/services/riskEngine.js"></script>
+  <script src="js/services/threatEngine.js"></script>
+  <script src="js/services/fusionService.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/map.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      await window.msStore.ready;
+      const { sidebarHtml, headerHtml } = window.MS_UI.renderAppShell("field", "overview");
+      document.getElementById("shell-sidebar-slot").outerHTML = sidebarHtml;
+      document.getElementById("shell-header-slot").outerHTML = headerHtml;
+
+      let currentTab = "overview";
+      const CURRENT_OFFICER_ID = "usr-field-1"; // Lt. Manoj Barua
+
+      // Helper function to calculate distance in km between two lat/lng points
+      function calcDistance(lat1, lon1, lat2, lon2) {
+        if (!lat1 || !lon1 || !lat2 || !lon2) return "0.0";
+        const R = 6371; // km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return (R * c).toFixed(1);
+      }
+
+      function renderTab(tab) {
+        currentTab = tab || currentTab;
+        const container = document.getElementById("field-view-container");
+        const s = window.msStore.getState();
+        const me = s.users.find(u => u.id === CURRENT_OFFICER_ID) || s.users[2] || { id: CURRENT_OFFICER_ID, name: "Lt. Manoj Barua", lat: 17.68, lng: 83.38, availability: "available" };
+        const meLat = me.lat || 17.68;
+        const meLng = me.lng || 83.38;
+        const myIncidents = s.incidents.filter(i => i.assignedTo === me.id && i.status !== "Closed");
+        const allActive = s.incidents.filter(i => i.status !== "Closed");
+
+        if (tab === "overview") {
+          const activeMission = myIncidents.length ? myIncidents[0] : allActive[0];
+
+          container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Field Tactical Console</h1>
+                <p class="section-subtitle">Interceptor Unit IC-114 · Real-time mission queue, live tactical navigation, and incident response.</p>
+              </div>
+              <span class="badge ${me.availability === 'available' ? 'badge-ok' : 'badge-warn'}">
+                Status: ${(me.availability || 'AVAILABLE').toUpperCase()}
+              </span>
+            </div>
+
+            <div class="grid-4" style="margin-bottom: 20px;">
+              <div class="metric-card">
+                <div class="metric-label">Assigned Missions</div>
+                <div class="metric-value mono-num" style="color:var(--status-warn);">${myIncidents.length}</div>
+                <div class="metric-hint">${allActive.length} active platform-wide</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Coastal Radar Range</div>
+                <div class="metric-value mono-num" style="color:var(--status-ok); font-size:21px;">120 NM</div>
+                <div class="metric-hint">Coastal Radar Grid Active</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Active Field Alerts</div>
+                <div class="metric-value mono-num" style="color:var(--status-warn); font-size:21px;">${(s.alerts || []).length}</div>
+                <div class="metric-hint">Tactical Broadcast Queue</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Fast Patrol Craft</div>
+                <div class="metric-value" style="color:var(--secondary); font-size:21px;">STANDBY</div>
+                <div class="metric-hint">Rapid Interception Readiness</div>
+              </div>
+            </div>
+
+            <div class="grid-3" style="grid-template-columns: 2fr 1fr;">
+              <div class="panel">
+                <div class="panel-header">
+                  <h2>Mission Map &amp; Intercept Vector</h2>
+                  <div style="display:flex; gap:8px;">
+                    ${activeMission ? `
+                      <button class="btn btn-secondary btn-sm" onclick="window.msStore.simulateOfficerMovement('${me.id}', '${activeMission.id}'); renderTab('overview');">
+                        ▶ Simulate Movement
+                      </button>
+                    ` : ''}
+                    <span class="badge badge-neutral">Leaflet Vector</span>
+                  </div>
+                </div>
+                <div class="panel-body no-padding" style="height: 380px;">
+                  <div id="field-map" class="map-canvas"></div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="panel-header">
+                  <h2>Active Assignment</h2>
+                  ${activeMission ? `<span class="badge badge-critical">${activeMission.id}</span>` : ''}
+                </div>
+                <div class="panel-body">
+                  ${activeMission ? `
+                    <h3 style="font-size:18px; font-weight:700;">${activeMission.title}</h3>
+                    <p style="font-size:14px; color:var(--text-muted); margin-top:4px;">${activeMission.description}</p>
+                    
+                    <div style="margin-top:14px;">
+                      <div class="keyval-row"><span class="keyval-key">Target Contact</span><span class="keyval-val">${activeMission.vesselName}</span></div>
+                      <div class="keyval-row"><span class="keyval-key">Threat Score</span><span class="keyval-val" style="color:var(--tertiary); font-weight:700;">${activeMission.risk}/100</span></div>
+                      <div class="keyval-row"><span class="keyval-key">Stage</span><span class="keyval-val badge badge-primary">${activeMission.missionStatus || 'Assigned'}</span></div>
+                      <div class="keyval-row"><span class="keyval-key">Coordinates</span><span class="keyval-val mono">${activeMission.lat}°N, ${activeMission.lng}°E</span></div>
+                    </div>
+
+                    <div style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
+                      <button class="btn btn-primary" onclick="renderTab('missions');">
+                        Manage Mission Lifecycle &rarr;
+                      </button>
+                      <button class="btn btn-secondary" onclick="renderTab('reports');">
+                        Submit Observations &amp; Evidence
+                      </button>
+                    </div>
+                  ` : `
+                    <p style="color:var(--text-muted); font-size:14px;">No active missions in your queue. Status: Standing by in ${me.region}.</p>
+                  `}
+                </div>
+              </div>
+            </div>
+          `;
+
+          setTimeout(() => {
+            const mapLat = (activeMission && activeMission.lat) ? activeMission.lat : meLat;
+            const mapLng = (activeMission && activeMission.lng) ? activeMission.lng : meLng;
+            window.MS_MAP.initMap("field-map", { center: [mapLat, mapLng], zoom: 8 });
+          }, 50);
+
+        } else if (tab === "missions") {
+          container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Field Missions Operations Queue</h1>
+                <p class="section-subtitle">Accept or decline dispatches, transition through the 6 operational stages, log on-scene observations, and report to command.</p>
+              </div>
+            </div>
+
+            <div class="grid-2">
+              ${(() => {
+                const STAGES = ['Assigned', 'Accepted', 'En Route', 'Target Located', 'Request Interception', 'Action Executed', 'Submitted'];
+                return (myIncidents.length ? myIncidents : allActive).map(inc => {
+                  const distKm = calcDistance(meLat, meLng, inc.lat, inc.lng);
+                  const currentStageStr = inc.missionStatus || 'Assigned';
+                  let currentIdx = STAGES.indexOf(currentStageStr);
+                  if (currentIdx === -1) {
+                    if (currentStageStr === 'In Progress') currentIdx = 1;
+                    else currentIdx = 0;
+                  }
+                  return `
+                  <div class="panel">
+                    <div class="panel-header">
+                      <h2>${inc.id} · ${inc.category}</h2>
+                      <span class="badge ${window.MS_UI.getBadgeClass(inc.status)}">${inc.status}</span>
+                    </div>
+                    <div class="panel-body">
+                      <strong style="font-size:16px; color:var(--primary);">${inc.title}</strong>
+                      <p style="font-size:14px; color:var(--text-muted); margin-top:4px;">${inc.description}</p>
+                      
+                      <div style="margin-top:12px;">
+                        <div class="keyval-row"><span class="keyval-key">Target Vessel</span><span class="keyval-val">${inc.vesselName}</span></div>
+                        <div class="keyval-row"><span class="keyval-key">Threat Score</span><span class="keyval-val" style="color:var(--tertiary); font-weight:700;">${inc.risk}/100 (${inc.riskLevel})</span></div>
+                        <div class="keyval-row"><span class="keyval-key">Current Stage</span><span class="keyval-val badge badge-primary">${inc.missionStatus || 'Assigned'}</span></div>
+                        <div class="keyval-row"><span class="keyval-key">Target Bearing</span><span class="keyval-val mono">${inc.lat}°N, ${inc.lng}°E (${distKm} km away)</span></div>
+                      </div>
+
+                      <!-- Acceptance & Rejection Actions only if pending acceptance -->
+                      ${currentIdx === 0 ? `
+                      <div style="margin-top:14px; padding:10px; background:var(--bg-card-subtle); border-radius:var(--radius-md); border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:14px; font-weight:600;">Assignment Action:</span>
+                        <div style="display:flex; gap:6px;">
+                          <button class="btn btn-success btn-sm" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Accepted', 'Officer accepted mission dispatch.'); renderTab('missions');">
+                            ✓ Accept Mission
+                          </button>
+                          <button class="btn btn-danger btn-sm" onclick="const r = prompt('Decline reason:','Outside operational range'); if(r){ window.msStore.rejectIncident('${inc.id}', r); renderTab('missions'); }">
+                            ✕ Decline
+                          </button>
+                        </div>
+                      </div>
+                      ` : ''}
+
+                      <!-- 6-Stage Tactical Status Workflow -->
+                      <div style="margin-top:16px;">
+                        <label class="form-label" style="font-size:13px; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">
+                          Tactical Execution Stages:
+                        </label>
+                        <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+                          ${currentIdx >= 1 ? `
+                            <span class="badge badge-ok" style="font-size:13px; padding:6px 11px;">✓ 1. Accepted</span>
+                          ` : `
+                            <button class="btn btn-primary btn-sm" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Accepted', 'Officer acknowledged mission orders.'); renderTab('missions');">
+                              1. Accept Mission
+                            </button>
+                          `}
+
+                          ${currentIdx >= 2 ? `
+                            <span class="badge badge-ok" style="font-size:13px; padding:6px 11px;">✓ 2. En Route</span>
+                          ` : currentIdx >= 1 ? `
+                            <button class="btn btn-primary btn-sm" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'En Route', 'Fast Interceptor Craft IC-114 underway to target.'); window.msStore.simulateOfficerMovement('${me.id}', '${inc.id}'); renderTab('missions');">
+                              2. En Route
+                            </button>
+                          ` : ''}
+
+                          ${currentIdx >= 3 ? `
+                            <span class="badge badge-ok" style="font-size:13px; padding:6px 11px;">✓ 3. Target Located</span>
+                          ` : currentIdx >= 2 ? `
+                            <button class="btn btn-primary btn-sm" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Target Located', 'Visual contact established with vessel. Closing to 50m for observation.'); renderTab('missions');">
+                              3. Target Located
+                            </button>
+                          ` : ''}
+
+                          ${currentIdx >= 4 ? `
+                            <span class="badge badge-ok" style="font-size:13px; padding:6px 11px;">✓ 4. Request Interception</span>
+                          ` : currentIdx >= 3 ? `
+                            <button class="btn btn-primary btn-sm" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Request Interception', 'Suspicious activity observed. Requesting Command authorization for tactical boarding & search.'); renderTab('missions');">
+                              4. Request Interception
+                            </button>
+                          ` : ''}
+
+                          ${currentIdx >= 5 ? `
+                            <span class="badge badge-ok" style="font-size:13px; padding:6px 11px;">✓ 5. Action Executed</span>
+                          ` : currentIdx >= 4 ? `
+                            <button class="btn btn-primary btn-sm" onclick="window.msStore.updateIncidentStatus('${inc.id}', 'Action Executed', 'Authorized action completed: Vessel boarded, master interviewed, and cargo manifest verified.'); renderTab('missions');">
+                              5. Action Executed
+                            </button>
+                          ` : ''}
+
+                          ${currentIdx >= 5 ? `
+                            <button class="btn btn-primary btn-sm" onclick="renderTab('reports');">
+                              6. Submit Final Report &rarr;
+                            </button>
+                          ` : ''}
+                        </div>
+                      </div>
+
+                    <!-- Quick Field Note Log Form -->
+                    <div style="margin-top:16px;">
+                      <div style="display:flex; gap:6px;">
+                        <input type="text" id="quick-note-${inc.id}" class="input-field" placeholder="Add observation note (e.g. Reached location, vessel inactive)..." style="font-size:14px;" />
+                        <button class="btn btn-secondary btn-sm" onclick="const nt = document.getElementById('quick-note-${inc.id}').value; if(nt){ window.msStore.addIncidentNote('${inc.id}', nt); renderTab('missions'); }">
+                          Log Note
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Timeline -->
+                    <div style="margin-top:16px;">
+                      <p style="font-size:13px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">Mission Timeline</p>
+                      <div class="timeline-list">
+                        ${inc.timeline.map(t => `
+                          <div class="timeline-item">
+                            <span class="timeline-dot"></span>
+                            <div style="display:flex; justify-content:space-between;">
+                              <strong style="font-size:14px;">${t.status}</strong>
+                              <span style="font-size:12px; color:var(--text-muted);">${window.MS_UI.fmtTime(t.ts)}</span>
+                            </div>
+                            <p style="font-size:13px; color:var(--text-muted); margin-top:2px;">${t.note} (${t.actor})</p>
+                          </div>
+                        `).join("")}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                `;
+              }).join("");
+            })()}
+            </div>
+          `;
+        } else if (tab === "history") {
+          const myClosedIncidents = s.incidents.filter(i => (i.assignedTo === me.id || i.assignedTo === CURRENT_OFFICER_ID) && i.status === "Closed");
+          const allClosedIncidents = s.incidents.filter(i => i.status === "Closed");
+          const historyFilter = window.fieldHistoryFilter || "mine";
+          const displayList = historyFilter === "mine" ? myClosedIncidents : allClosedIncidents;
+
+          container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Mission History &amp; Completed Archives</h1>
+                <p class="section-subtitle">Review resolved mission dossiers, past inspection findings, and submitted field evidence logs.</p>
+              </div>
+            </div>
+
+            <div class="grid-4" style="margin-bottom:20px;">
+              <div class="metric-card">
+                <div class="metric-label">My Resolved Missions</div>
+                <div class="metric-value mono-num" style="color:var(--status-ok);">${myClosedIncidents.length}</div>
+                <div class="metric-hint">Completed by ${me.name}</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Sector Total Resolved</div>
+                <div class="metric-value mono-num" style="color:var(--primary);">${allClosedIncidents.length}</div>
+                <div class="metric-hint">All Coastal Field Units</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Evidence Vault Logs</div>
+                <div class="metric-value mono-num" style="color:var(--secondary);">${allClosedIncidents.reduce((acc, x) => acc + (x.evidence ? x.evidence.length : 0), 0)}</div>
+                <div class="metric-hint">FLIR, Drone &amp; Manifest Files</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Clearance Success</div>
+                <div class="metric-value mono-num" style="color:var(--status-ok);">100%</div>
+                <div class="metric-hint">Operational Compliance</div>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:12px; margin-bottom:20px;">
+              <button class="btn ${historyFilter === 'mine' ? 'btn-primary' : 'btn-secondary'}" onclick="window.fieldHistoryFilter = 'mine'; renderTab('history');">
+                👤 My Unit History (${myClosedIncidents.length})
+              </button>
+              <button class="btn ${historyFilter === 'all' ? 'btn-primary' : 'btn-secondary'}" onclick="window.fieldHistoryFilter = 'all'; renderTab('history');">
+                🌐 All Base Patrol History (${allClosedIncidents.length})
+              </button>
+            </div>
+
+            ${displayList.length === 0 ? `
+              <div class="panel" style="padding:32px; text-align:center;">
+                <p style="font-size:15px; color:var(--text-muted);">No completed mission archives found for this filter.</p>
+              </div>
+            ` : `
+              <div class="grid-2">
+                ${displayList.map(inc => `
+                  <div class="panel">
+                    <div class="panel-header">
+                      <h2>${inc.id} · ${inc.category}</h2>
+                      <span class="badge badge-ok">✓ Resolved &amp; Archived</span>
+                    </div>
+                    <div class="panel-body">
+                      <strong style="font-size:16px; color:var(--primary);">${inc.title}</strong>
+                      <p style="font-size:13px; color:var(--text-muted); margin-top:4px;">${inc.description}</p>
+                      
+                      <div style="margin-top:12px;">
+                        <div class="keyval-row"><span class="keyval-key">Target Contact</span><span class="keyval-val">${inc.vesselName}</span></div>
+                        <div class="keyval-row"><span class="keyval-key">Threat Score</span><span class="keyval-val" style="color:var(--tertiary); font-weight:700;">${inc.risk}/100 (${inc.riskLevel})</span></div>
+                        <div class="keyval-row"><span class="keyval-key">Resolved Date</span><span class="keyval-val">${inc.closedAt ? window.MS_UI.fmtTime(inc.closedAt) : 'Archived'}</span></div>
+                        <div class="keyval-row"><span class="keyval-key">Assigned Unit</span><span class="keyval-val" style="font-weight:700; color:var(--primary);">${s.users.find(u => u.id === inc.assignedTo)?.name || 'Field Unit'}</span></div>
+                      </div>
+
+                      <div style="margin-top:14px;">
+                        <p style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">Mission Operational Timeline</p>
+                        <div class="timeline-list">
+                          ${(inc.timeline || []).map(t => `
+                            <div class="timeline-item">
+                              <span class="timeline-dot"></span>
+                              <div style="display:flex; justify-content:space-between;">
+                                <strong style="font-size:13px;">${t.status}</strong>
+                                <span style="font-size:11px; color:var(--text-muted);">${window.MS_UI.fmtTime(t.ts)}</span>
+                              </div>
+                              <p style="font-size:12px; color:var(--text-muted); margin-top:2px;">${t.note} (${t.actor})</p>
+                            </div>
+                          `).join("")}
+                        </div>
+                      </div>
+
+                      ${inc.fieldNotes && inc.fieldNotes.length ? `
+                        <div style="margin-top:12px;">
+                          <p style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">On-Scene Findings</p>
+                          <ul style="font-size:12px; padding-left:16px; color:var(--text-main);">
+                            ${inc.fieldNotes.map(n => `<li>${n}</li>`).join("")}
+                          </ul>
+                        </div>
+                      ` : ''}
+
+                      ${inc.evidence && inc.evidence.length ? `
+                        <div style="margin-top:12px;">
+                          <p style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">Attached Mission Evidence</p>
+                          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            ${inc.evidence.map(e => `<span class="badge badge-neutral" style="font-size:11px;">📄 ${e}</span>`).join("")}
+                          </div>
+                        </div>
+                      ` : ''}
+                    </div>
+                  </div>
+                `).join("")}
+              </div>
+            `}
+          `;
+        } else if (tab === "map") {
+          container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Field Mission Tactical Map</h1>
+                <p class="section-subtitle">Real-time coastal sector tactical overlay with live GPS beacon and mission intercept vectors.</p>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="window.msStore.simulateOfficerMovement('${me.id}'); renderTab('map');">
+                ▶ Simulate Intercept Movement
+              </button>
+            </div>
+            <div class="panel" style="height: calc(100vh - 160px);">
+              <div class="panel-body no-padding" style="height: 100%;">
+                <div id="field-full-map" class="map-canvas" style="height: 100%; border-radius: var(--radius-lg);"></div>
+              </div>
+            </div>
+          `;
+          setTimeout(() => {
+            const mapLat = (myIncidents.length && myIncidents[0].lat) ? myIncidents[0].lat : meLat;
+            const mapLng = (myIncidents.length && myIncidents[0].lng) ? myIncidents[0].lng : meLng;
+            window.MS_MAP.initMap("field-full-map", { center: [mapLat, mapLng], zoom: 8 });
+          }, 50);
+
+        } else if (tab === "reports") {
+          const reportInc = myIncidents.length ? myIncidents[0] : allActive[0];
+
+          container.innerHTML = `
+            <div class="section-header">
+              <div>
+                <h1 class="section-title">Submit Field Evidence &amp; Final Report</h1>
+                <p class="section-subtitle">Upload photographic documentation, inspection logs, and close resolved missions with command.</p>
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('evidence-modal').classList.add('open');">
+                📸 Attach New Evidence File
+              </button>
+            </div>
+
+            <div class="grid-2">
+              <div class="panel">
+                <div class="panel-header">
+                  <h2>Mission Final Closure Report</h2>
+                </div>
+                <div class="panel-body">
+                  <form id="evidence-form">
+                    <div class="form-group">
+                      <label class="form-label">Select Active Incident</label>
+                      <select class="select-field" id="report-inc-id">
+                        ${allActive.map(i => `<option value="${i.id}">${i.id} — ${i.title}</option>`).join("")}
+                      </select>
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label">Inspection Outcome</label>
+                      <select class="select-field" id="report-outcome">
+                        <option value="Clear / No Contraband">Clear / No Contraband Found</option>
+                        <option value="Escorted Outside Perimeter">Escorted Outside Security Sector</option>
+                        <option value="Detained for Customs & Coast Guard">Detained for Customs & Coast Guard</option>
+                        <option value="Warning Issued / AIS Restored">Formal Warning Issued / AIS Restored</option>
+                      </select>
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label">Findings &amp; Action Taken</label>
+                      <textarea class="textarea-field" id="report-notes" rows="4" placeholder="Vessel boarded at 17.65°N 83.32°E. Cargo manifest inspected, master interviewed, transponder re-synchronized, vessel safely escorted out." required></textarea>
+                    </div>
+
+                    <div style="margin-top: 20px; text-align: right;">
+                      <button type="submit" class="btn btn-primary">Submit to Command &amp; Close Incident</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="panel-header">
+                  <h2>Attached Evidence Gallery</h2>
+                  <span class="badge badge-ok">${reportInc?.evidence?.length || 2} Files Attached</span>
+                </div>
+                <div class="panel-body">
+                  <div style="display:flex; flex-direction:column; gap:10px;">
+                    <div style="padding:10px; border:1px solid var(--border-color); border-radius:var(--radius-md); background:var(--bg-card-subtle); display:flex; justify-content:space-between; align-items:center;">
+                      <div>
+                        <strong style="font-size:15px;">📸 hull-inspection-stern.jpg</strong>
+                        <p style="font-size:13px; color:var(--text-muted);">Optical camera · 2.4 MB · High resolution</p>
+                      </div>
+                      <span class="badge badge-ok">Verified</span>
+                    </div>
+
+                    <div style="padding:10px; border:1px solid var(--border-color); border-radius:var(--radius-md); background:var(--bg-card-subtle); display:flex; justify-content:space-between; align-items:center;">
+                      <div>
+                        <strong style="font-size:15px;">🎥 flir-thermal-track.mp4</strong>
+                        <p style="font-size:13px; color:var(--text-muted);">FLIR night sensor video · 18.6 MB</p>
+                      </div>
+                      <span class="badge badge-ok">Verified</span>
+                    </div>
+
+                    ${(reportInc?.evidence || []).map(ev => `
+                      <div style="padding:10px; border:1px solid var(--border-color); border-radius:var(--radius-md); background:var(--bg-card-subtle); display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                          <strong style="font-size:15px;">📁 ${ev.name}</strong>
+                          <p style="font-size:13px; color:var(--text-muted);">${ev.type} · ${ev.notes || 'On-scene evidence'}</p>
+                        </div>
+                        <span class="badge badge-ok">Uploaded</span>
+                      </div>
+                    `).join("")}
+                  </div>
+
+                  <div style="margin-top:16px; text-align:center;">
+                    <button class="btn btn-secondary btn-sm" onclick="document.getElementById('evidence-modal').classList.add('open');">
+                      + Add Photo / Video Evidence
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+
+          document.getElementById("evidence-form").addEventListener("submit", (e) => {
+            e.preventDefault();
+            const incId = document.getElementById("report-inc-id").value;
+            const outcome = document.getElementById("report-outcome").value;
+            const notes = document.getElementById("report-notes").value;
+            window.msStore.closeIncident(incId, `${outcome}: ${notes}`);
+            renderTab("overview");
+          });
+        } else if (tab === "profile") {
+          container.innerHTML = window.MS_UI.getProfileHtml("field");
+        }
+      }
+      window.renderTab = renderTab;
+
+      // Evidence modal form submission
+      document.getElementById("upload-evidence-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const type = document.getElementById("evidence-type").value;
+        const name = document.getElementById("evidence-name").value;
+        const notes = document.getElementById("evidence-notes").value;
+        const s = window.msStore.getState();
+        const activeInc = s.incidents.find(i => i.status !== "Closed");
+        if (activeInc) {
+          window.msStore.addIncidentEvidence(activeInc.id, { type, name, notes, ts: new Date().toISOString() });
+        }
+        document.getElementById("evidence-modal").classList.remove("open");
+        document.getElementById("upload-evidence-form").reset();
+        renderTab("reports");
+      });
+
+      window.MS_UI.attachLayoutEvents(renderTab);
+      renderTab("overview");
+    });
+  </script>
+</body>
+</html>
