@@ -14,12 +14,11 @@
  * 4. Strict ML Requirement: Live ML API response required (backup fallback removed)
  */
 (function () {
+  const isLocal = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
   const customApi = (typeof window !== "undefined" && window.MARISENTINEL_API_BASE) ? window.MARISENTINEL_API_BASE : null;
   const API_CANDIDATES = [
     ...(customApi ? [customApi] : []),
-    "http://127.0.0.1:5005",
-    "http://localhost:5005",
-    "https://marisentinel-api.onrender.com"
+    ...(isLocal ? ["http://127.0.0.1:5005", "http://localhost:5005", "https://marisentinel-api.onrender.com"] : ["https://marisentinel-api.onrender.com", "http://127.0.0.1:5005", "http://localhost:5005"])
   ];
   let activeApiBase = API_CANDIDATES[0];
   const TIMEOUT_MS = 6000;
