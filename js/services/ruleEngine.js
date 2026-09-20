@@ -1,12 +1,12 @@
 /**
- * MARISENTINEL — Rule Engine (Explanation & Fallback Only)
+ * MARISENTINEL — Rule Engine (Explanation & Heuristics Only)
  * 
  * HYBRID AI ARCHITECTURE RULE:
  * This rule engine NEVER assigns final risk scores or overrides ML decisions.
  * It is used EXCLUSIVELY for:
  * 1. Generating human-understandable explanation triggers ("Why this alert?")
  * 2. Baseline comparison (Rule Score vs ML Score)
- * 3. Fallback risk evaluation in the event the primary ML service is unreachable.
+ * (Backup/fallback for ML model has been removed; predictions strictly require ML backend)
  * 
  * Target Rules:
  * - AIS OFF + Restricted Zone → "Dark Activity"
@@ -103,47 +103,9 @@
     };
   }
 
-  /**
-   * Fallback assessment only used when the ML backend is offline.
-   */
-  function generateFallbackAssessment(vessel, customRules) {
-    const { triggeredRules, ruleScore } = evaluateRules(vessel, customRules);
-    let level = "LOW";
-    let threatType = "Normal Transit";
-
-    const isCriticalCondition = Boolean(
-      (vessel.aisOff && vessel.inRestrictedZone) ||
-      (vessel.routeDeviation && vessel.nearBorder) ||
-      (vessel.speed < 5.0 && vessel.inRestrictedZone)
-    );
-
-    if (ruleScore >= 70 || isCriticalCondition) {
-      level = "HIGH";
-      if (vessel.aisOff && vessel.inRestrictedZone) threatType = "Dark Activity / Smuggling";
-      else if (vessel.routeDeviation && vessel.nearBorder) threatType = "Border Intrusion";
-      else if (vessel.speed < 5.0 && vessel.inRestrictedZone) threatType = "Illegal Fishing";
-      else threatType = "High Threat Intrusion";
-    } else if (ruleScore >= 35) {
-      level = "MEDIUM";
-      if (vessel.loitering) threatType = "Suspicious Loitering";
-      else if (vessel.speedChange > 30) threatType = "Anomalous Behavior";
-      else threatType = "High Risk Transit";
-    }
-
-    return {
-      riskScore: ruleScore,
-      level,
-      threatType,
-      confidence: 50.0,
-      triggeredRules,
-      isFallback: true
-    };
-  }
-
   // Export to global scope
   const MS_RULE_ENGINE = {
-    evaluateRules,
-    generateFallbackAssessment
+    evaluateRules
   };
 
   if (typeof window !== "undefined") {

@@ -11,15 +11,15 @@
  * 1. ML output ALWAYS decides finalDecision (level)
  * 2. Rules NEVER override ML
  * 3. Rules only explain WHY (triggeredRules, baseline ruleScore)
- * 4. Automatic Fallback: If ML API fails, gracefully uses rule engine
+ * 4. Strict ML Requirement: Live ML API response required (backup fallback removed)
  */
 (function () {
   const customApi = (typeof window !== "undefined" && window.MARISENTINEL_API_BASE) ? window.MARISENTINEL_API_BASE : null;
   const API_CANDIDATES = [
     ...(customApi ? [customApi] : []),
-    "https://marisentinel-api.onrender.com",
     "http://127.0.0.1:5005",
-    "http://localhost:5005"
+    "http://localhost:5005",
+    "https://marisentinel-api.onrender.com"
   ];
   let activeApiBase = API_CANDIDATES[0];
   const TIMEOUT_MS = 6000;
@@ -83,6 +83,7 @@
   /**
    * Main Hybrid Fusion Method
    * Combines ML Model Prediction with Rule Engine Explanation.
+   * NOTE: Backup/fallback removed - strictly requires live ML model inference.
    */
   async function evaluateVessel(vessel) {
     const payload = formatTelemetryPayload(vessel);
@@ -97,48 +98,20 @@
       ? ruleEngine.evaluateRules(payload)
       : { triggeredRules: [], ruleScore: 0 };
 
-    let mlOutput = null;
-    let isFallback = false;
+    // 2. Query Primary ML Model via Flask Backend (/predict) - Strict ML requirement, no backup
+    const res = await fetchWithFallback("/predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
 
-    // 2. Query Primary ML Model via Flask Backend (/predict)
-    try {
-      const res = await fetchWithFallback("/predict", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        throw new Error(`ML Service responded with status: ${res.status}`);
-      }
-
-      mlOutput = await res.json();
-    } catch (err) {
-      // Step 6: Fallback Handling if ML API fails
-      console.warn(`[MARISENTINEL Fusion] ML backend offline or unreachable. Engaging Rule Engine Fallback for ${vesselId}.`, err.message);
-      isFallback = true;
-
-      if (ruleEngine && ruleEngine.generateFallbackAssessment) {
-        const fallback = ruleEngine.generateFallbackAssessment(payload);
-        mlOutput = {
-          riskScore: fallback.riskScore,
-          level: fallback.level,
-          threatType: fallback.threatType,
-          confidence: 50.0,
-          contributingFeatures: []
-        };
-      } else {
-        mlOutput = {
-          riskScore: ruleOutput.ruleScore || 0,
-          level: (ruleOutput.ruleScore >= 70 ? "HIGH" : ruleOutput.ruleScore >= 35 ? "MEDIUM" : "LOW"),
-          threatType: "Rule Engine Fallback",
-          confidence: 50.0,
-          contributingFeatures: []
-        };
-      }
+    if (!res.ok) {
+      throw new Error(`ML Service responded with status: ${res.status}`);
     }
 
-    // 3. Assemble Final Hybrid Architecture Schema (Step 3)
+    const mlOutput = await res.json();
+
+    // 3. Assemble Final Hybrid Architecture Schema
     const fusedResult = {
       vesselId,
       mlPrediction: {
@@ -153,8 +126,7 @@
         ruleScore: ruleOutput.ruleScore
       },
       finalDecision: mlOutput.level, // ML output ALWAYS decides finalDecision
-      explainability: true,
-      isFallback
+      explainability: true
     };
 
     predictionCache.set(vesselId, fusedResult);
@@ -163,32 +135,29 @@
 
   /**
    * Batch evaluate an array of vessels for initialization & tick synchronization.
+   * NOTE: Backup/fallback removed - strictly queries live ML backend batch endpoint.
    */
   async function evaluateVesselsBatch(vessels) {
     if (!Array.isArray(vessels) || !vessels.length) return [];
 
-    try {
-      const payloads = vessels.map(formatTelemetryPayload);
-      const res = await fetchWithFallback("/batch-predict", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vessels: payloads })
-      }, 7000);
+    const payloads = vessels.map(formatTelemetryPayload);
+    const res = await fetchWithFallback("/batch-predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ vessels: payloads })
+    }, 7000);
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data && Array.isArray(data.results)) {
-          data.results.forEach((r) => {
-            if (r.vesselId) predictionCache.set(r.vesselId, r);
-          });
-          return data.results;
-        }
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.results)) {
+        data.results.forEach((r) => {
+          if (r.vesselId) predictionCache.set(r.vesselId, r);
+        });
+        return data.results;
       }
-    } catch (err) {
-      console.warn("[MARISENTINEL Fusion] Batch predict fallback to individual inference:", err.message);
     }
 
-    return Promise.all(vessels.map(evaluateVessel));
+    throw new Error("Batch ML prediction returned invalid response from server");
   }
 
   async function checkBackendHealth() {

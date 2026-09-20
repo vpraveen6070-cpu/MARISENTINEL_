@@ -630,8 +630,8 @@ window.MS_UI = (function () {
         badge.style.border = "1px solid #f59e0b";
         badge.style.background = "rgba(245, 158, 11, 0.15)";
         badge.style.color = "#f59e0b";
-        text.textContent = "FLASK ML: RECONNECTING";
-        badge.title = "Python ML server unreachable at port 5005. Engaging heuristic fallback.";
+        text.textContent = "FLASK ML: OFFLINE";
+        badge.title = "Python ML server unreachable at port 5005. Backup fallback disabled; live ML server required.";
       }
     }
   }

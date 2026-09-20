@@ -33,3 +33,12 @@ __pycache__/
 env/
 venv/
 
+# Documentation, Research Paper & Architecture figures (excluded from deployment)
+figures/
+paper.md
+PAPER.md
+system-architecture.png
+data
+
+
+
