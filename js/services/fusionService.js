@@ -42,7 +42,7 @@
   }
 
   let activeApiBase = API_CANDIDATES[0] || CLOUD_API;
-  const TIMEOUT_MS = (isHttps || !isLocalHost) ? 15000 : 6000;
+  const TIMEOUT_MS = 15000;
 
   // Cache to optimize repeated evaluations
   const predictionCache = new Map();
@@ -209,7 +209,7 @@
       return healthCheckInFlight;
     }
 
-    const timeout = options.timeout || (isHttps || !isLocalHost ? 12000 : 4000);
+    const timeout = options.timeout || 12000;
     const isCloud = Boolean(activeApiBase && (activeApiBase.includes("onrender.com") || activeApiBase.startsWith("https:")));
 
     healthCheckInFlight = (async () => {
