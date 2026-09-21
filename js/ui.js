@@ -461,8 +461,8 @@ window.MS_UI = (function () {
         showToast("Pinging Python Flask ML server (waking cloud container if idle)...", "info");
         const fusion = window.MS_FUSION;
         if (fusion && fusion.checkBackendHealth) {
-          const res = await fusion.checkBackendHealth({ timeout: 20000 });
-          await updateMlServerStatus();
+          const res = await fusion.checkBackendHealth({ timeout: 20000, force: true });
+          await updateMlServerStatus(res);
           if (res && res.ok) {
             const isCloud = res.isCloud || (res.endpoint && (res.endpoint.includes("render") || res.endpoint.startsWith("https:")));
             showToast(`Connected to Flask ML (${isCloud ? "Cloud Render" : "Port 5005"}) · Dual Random Forest Active`, "success");
@@ -603,18 +603,22 @@ window.MS_UI = (function () {
   }
 
   /* ---------------- Real-time Python Flask ML server health monitor ---------------- */
-  async function updateMlServerStatus() {
+  async function updateMlServerStatus(providedStatus) {
     const badge = document.getElementById("ml-server-status-badge");
     const text = document.getElementById("ml-server-text");
     if (!badge || !text) return;
 
     const fusion = (typeof window !== "undefined" && window.MS_FUSION) ? window.MS_FUSION : null;
-    if (fusion && fusion.checkBackendHealth) {
-      const status = await fusion.checkBackendHealth();
-      const isCloud = status && (status.isCloud || (status.endpoint && (status.endpoint.includes("onrender.com") || status.endpoint.startsWith("https:"))));
+    let status = providedStatus;
+    if (!status && fusion && fusion.checkBackendHealth) {
+      status = await fusion.checkBackendHealth();
+    }
+
+    if (status) {
+      const isCloud = Boolean(status.isCloud || (status.endpoint && (status.endpoint.includes("onrender.com") || status.endpoint.startsWith("https:"))));
       const targetLabel = isCloud ? "CLOUD" : "5005";
 
-      if (status && status.ok) {
+      if (status.ok) {
         badge.className = "badge badge-ok";
         badge.style.border = "1px solid #10b981";
         badge.style.background = "rgba(16, 185, 129, 0.15)";

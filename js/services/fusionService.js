@@ -197,8 +197,14 @@
   }
 
   let healthCheckInFlight = null;
+  let lastHealthCheck = null;
 
   async function checkBackendHealth(options = {}) {
+    const now = Date.now();
+    if (!options.force && lastHealthCheck && (now - lastHealthCheck.timestamp < 4000)) {
+      return lastHealthCheck.result;
+    }
+
     if (healthCheckInFlight) {
       return healthCheckInFlight;
     }
@@ -211,14 +217,20 @@
         const res = await fetchWithFallback("/health", {}, timeout);
         if (res.ok) {
           const data = await res.json();
-          return { ok: true, endpoint: activeApiBase, isCloud, ...data };
+          const result = { ok: true, endpoint: activeApiBase, isCloud, ...data };
+          lastHealthCheck = { timestamp: Date.now(), result };
+          return result;
         }
       } catch (err) {
-        return { ok: false, error: err.message, endpoint: activeApiBase, isCloud };
+        const result = { ok: false, error: err.message, endpoint: activeApiBase, isCloud };
+        lastHealthCheck = { timestamp: Date.now(), result };
+        return result;
       } finally {
         healthCheckInFlight = null;
       }
-      return { ok: false, endpoint: activeApiBase, isCloud };
+      const result = { ok: false, endpoint: activeApiBase, isCloud };
+      lastHealthCheck = { timestamp: Date.now(), result };
+      return result;
     })();
 
     return healthCheckInFlight;
