@@ -14,14 +14,35 @@
  * 4. Strict ML Requirement: Live ML API response required (backup fallback removed)
  */
 (function () {
-  const isLocal = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-  const customApi = (typeof window !== "undefined" && window.MARISENTINEL_API_BASE) ? window.MARISENTINEL_API_BASE : null;
-  const API_CANDIDATES = [
-    ...(customApi ? [customApi] : []),
-    ...(isLocal ? ["http://127.0.0.1:5005", "http://localhost:5005", "https://marisentinel-api.onrender.com"] : ["https://marisentinel-api.onrender.com", "http://127.0.0.1:5005", "http://localhost:5005"])
-  ];
-  let activeApiBase = API_CANDIDATES[0];
-  const TIMEOUT_MS = 6000;
+  const isBrowser = typeof window !== "undefined";
+  const isHttps = isBrowser && window.location.protocol === "https:";
+  const isLocalHost = isBrowser && (
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1" ||
+    window.location.hostname === "0.0.0.0" ||
+    window.location.hostname.endsWith(".local") ||
+    window.location.protocol === "file:"
+  );
+
+  const customApi = (isBrowser && window.MARISENTINEL_API_BASE) ? window.MARISENTINEL_API_BASE : null;
+  const CLOUD_API = "https://marisentinel-api.onrender.com";
+
+  // Build candidate list based on environment
+  // CRITICAL: On HTTPS or deployed links, NEVER attempt insecure http://127.0.0.1 (blocked by mixed content)
+  let API_CANDIDATES = [];
+  if (customApi) {
+    API_CANDIDATES.push(customApi);
+  }
+  if (isHttps || !isLocalHost) {
+    API_CANDIDATES.push(CLOUD_API);
+  } else {
+    API_CANDIDATES.push("http://127.0.0.1:5005");
+    API_CANDIDATES.push("http://localhost:5005");
+    API_CANDIDATES.push(CLOUD_API);
+  }
+
+  let activeApiBase = API_CANDIDATES[0] || CLOUD_API;
+  const TIMEOUT_MS = (isHttps || !isLocalHost) ? 15000 : 6000;
 
   // Cache to optimize repeated evaluations
   const predictionCache = new Map();
@@ -58,25 +79,36 @@
   }
 
   async function fetchWithFallback(path, options = {}, timeoutMs = TIMEOUT_MS) {
+    const timeout = timeoutMs || TIMEOUT_MS;
+
     // 1. Try active API Base
     try {
-      const res = await fetchWithTimeout(`${activeApiBase}${path}`, options, timeoutMs);
+      const res = await fetchWithTimeout(`${activeApiBase}${path}`, options, timeout);
       if (res.ok) return res;
-    } catch (_) {}
+    } catch (_) { }
 
     // 2. Try remaining candidates
     for (const base of API_CANDIDATES) {
       if (base === activeApiBase) continue;
       try {
-        const res = await fetchWithTimeout(`${base}${path}`, options, timeoutMs);
+        const res = await fetchWithTimeout(`${base}${path}`, options, timeout);
         if (res.ok) {
           activeApiBase = base;
           return res;
         }
-      } catch (_) {}
+      } catch (_) { }
     }
 
-    throw new Error(`Failed to reach Python Flask ML API at ${path} on port 5005`);
+    // 3. For cloud endpoints on Render, retry once if waking up from cold start
+    if (activeApiBase.includes("onrender.com")) {
+      try {
+        await new Promise(r => setTimeout(r, 1200));
+        const res = await fetchWithTimeout(`${activeApiBase}${path}`, options, timeout);
+        if (res.ok) return res;
+      } catch (_) { }
+    }
+
+    throw new Error(`Failed to reach Python Flask ML API at ${path} on ${activeApiBase}`);
   }
 
   /**
@@ -105,7 +137,7 @@
     const ruleEngine = (typeof window !== "undefined" && window.MS_RULE_ENGINE)
       ? window.MS_RULE_ENGINE
       : ((typeof globalThis !== "undefined" && globalThis.MS_RULE_ENGINE) ? globalThis.MS_RULE_ENGINE : null);
-    
+
     const ruleOutput = ruleEngine
       ? ruleEngine.evaluateRules(payload, mlOutput.threatType)
       : { triggeredRules: [], explainability: "", ruleScore: 0 };
@@ -144,11 +176,12 @@
     if (!Array.isArray(vessels) || !vessels.length) return [];
 
     const payloads = vessels.map(formatTelemetryPayload);
+    const batchTimeout = (isHttps || !isLocalHost) ? 25000 : 7000;
     const res = await fetchWithFallback("/batch-predict", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ vessels: payloads })
-    }, 7000);
+    }, batchTimeout);
 
     if (res.ok) {
       const data = await res.json();
@@ -163,17 +196,39 @@
     throw new Error("Batch ML prediction returned invalid response from server");
   }
 
-  async function checkBackendHealth() {
-    try {
-      const res = await fetchWithFallback("/health", {}, 3000);
-      if (res.ok) {
-        const data = await res.json();
-        return { ok: true, endpoint: activeApiBase, ...data };
-      }
-    } catch (err) {
-      return { ok: false, error: err.message, endpoint: activeApiBase };
+  let healthCheckInFlight = null;
+
+  async function checkBackendHealth(options = {}) {
+    if (healthCheckInFlight) {
+      return healthCheckInFlight;
     }
-    return { ok: false, endpoint: activeApiBase };
+
+    const timeout = options.timeout || (isHttps || !isLocalHost ? 12000 : 4000);
+    const isCloud = Boolean(activeApiBase && (activeApiBase.includes("onrender.com") || activeApiBase.startsWith("https:")));
+
+    healthCheckInFlight = (async () => {
+      try {
+        const res = await fetchWithFallback("/health", {}, timeout);
+        if (res.ok) {
+          const data = await res.json();
+          return { ok: true, endpoint: activeApiBase, isCloud, ...data };
+        }
+      } catch (err) {
+        return { ok: false, error: err.message, endpoint: activeApiBase, isCloud };
+      } finally {
+        healthCheckInFlight = null;
+      }
+      return { ok: false, endpoint: activeApiBase, isCloud };
+    })();
+
+    return healthCheckInFlight;
+  }
+
+  // Self-warmup on initial load so cloud container wakes up immediately if idle
+  if (isBrowser) {
+    setTimeout(() => {
+      checkBackendHealth({ timeout: 15000 }).catch(() => {});
+    }, 150);
   }
 
   const MS_FUSION = {
@@ -181,6 +236,7 @@
     evaluateVesselsBatch,
     checkBackendHealth,
     getActiveEndpoint: () => activeApiBase,
+    isCloudEndpoint: () => Boolean(activeApiBase && (activeApiBase.includes("onrender.com") || activeApiBase.startsWith("https:"))),
     getCached: (id) => predictionCache.get(id),
     clearCache: () => predictionCache.clear()
   };
@@ -196,3 +252,4 @@
     module.exports = MS_FUSION;
   }
 })();
+
