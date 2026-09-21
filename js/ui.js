@@ -456,7 +456,15 @@ window.MS_UI = (function () {
     const mlBadge = document.getElementById("ml-server-status-badge");
     if (mlBadge) {
       mlBadge.addEventListener("click", async () => {
-        showToast("Checking Python Flask ML server health (port 5005)...", "info");
+        showToast("Rechecking Flask ML server connection...", "info");
+        const dot = document.getElementById("ml-server-dot");
+        const text = document.getElementById("ml-server-text");
+        if (dot) {
+          dot.style.background = "#38bdf8";
+          dot.style.boxShadow = "0 0 8px #38bdf8";
+        }
+        if (text) text.textContent = "CHECKING...";
+        _consecutiveMlFailures = 0;
         await updateMlServerStatus();
         const fusion = window.MS_FUSION;
         if (fusion && fusion.checkBackendHealth) {
