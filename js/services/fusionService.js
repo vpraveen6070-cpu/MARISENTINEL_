@@ -14,12 +14,25 @@
  * 4. Strict ML Requirement: Live ML API response required (backup fallback removed)
  */
 (function () {
+  const isHttps = typeof window !== "undefined" && window.location && window.location.protocol === "https:";
+  const isLocalHost = typeof window !== "undefined" && window.location && 
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+
   const customApi = (typeof window !== "undefined" && window.MARISENTINEL_API_BASE) ? window.MARISENTINEL_API_BASE : null;
+
+  // On HTTPS origins (e.g. GitHub Pages), prioritize HTTPS Render endpoint to avoid Mixed Content block.
+  // On localhost, prioritize local Flask port 5005.
   const API_CANDIDATES = [
     ...(customApi ? [customApi] : []),
-    "http://127.0.0.1:5005",
-    "http://localhost:5005",
-    "https://marisentinel-api.onrender.com"
+    ...(isHttps || !isLocalHost ? [
+      "https://marisentinel-api.onrender.com",
+      "http://127.0.0.1:5005",
+      "http://localhost:5005"
+    ] : [
+      "http://127.0.0.1:5005",
+      "http://localhost:5005",
+      "https://marisentinel-api.onrender.com"
+    ])
   ];
   let activeApiBase = API_CANDIDATES[0];
   const TIMEOUT_MS = 15000;
@@ -68,6 +81,7 @@
     // 2. Try remaining candidates
     for (const base of API_CANDIDATES) {
       if (base === activeApiBase) continue;
+      if (isHttps && base.startsWith("http://")) continue;
       try {
         const res = await fetchWithTimeout(`${base}${path}`, options, timeoutMs);
         if (res.ok) {

@@ -287,8 +287,8 @@ window.MS_UI = (function () {
 
         <div class="header-right">
           <!-- Python Flask ML Server Status Badge -->
-          <div class="badge badge-ok" id="ml-server-status-badge" style="cursor:pointer;padding:4px 9px;font-size:11.5px;display:flex;align-items:center;gap:6px;" title="Connected to Python Flask ML Server (Port 5005) · Random Forest Active">
-            <span style="width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;display:inline-block;"></span>
+          <div class="badge badge-ok" id="ml-server-status-badge" style="cursor:pointer;padding:4px 9px;font-size:11.5px;display:flex;align-items:center;gap:6px;" title="Connected to Python Flask ML Server · Random Forest Active">
+            <span id="ml-server-dot" style="width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;display:inline-block;transition:all 0.3s ease;"></span>
             <span id="ml-server-text" style="font-weight:700;">FLASK ML: ONLINE</span>
           </div>
 
@@ -601,29 +601,44 @@ window.MS_UI = (function () {
   }
 
   /* ---------------- Real-time Python Flask ML server health monitor ---------------- */
+  let _consecutiveMlFailures = 0;
+
   async function updateMlServerStatus() {
     const badge = document.getElementById("ml-server-status-badge");
     const text = document.getElementById("ml-server-text");
+    const dot = document.getElementById("ml-server-dot");
     if (!badge || !text) return;
 
     const fusion = (typeof window !== "undefined" && window.MS_FUSION) ? window.MS_FUSION : null;
     if (fusion && fusion.checkBackendHealth) {
       const status = await fusion.checkBackendHealth();
       if (status && status.ok) {
+        _consecutiveMlFailures = 0;
         badge.className = "badge badge-ok";
         badge.style.border = "1px solid #10b981";
         badge.style.background = "rgba(16, 185, 129, 0.15)";
         badge.style.color = "#10b981";
+        if (dot) {
+          dot.style.background = "#10b981";
+          dot.style.boxShadow = "0 0 6px #10b981";
+        }
         const isRender = status.endpoint && status.endpoint.includes("onrender.com");
         text.textContent = isRender ? "FLASK ML: RENDER ONLINE" : "FLASK ML: ONLINE (5005)";
-        badge.title = `Connected to Python Flask Server at ${status.endpoint || 'http://127.0.0.1:5005'} · Dual Random Forest Active`;
+        badge.title = `Connected to Python Flask Server at ${status.endpoint || 'Render Cloud'} · Dual Random Forest Active`;
       } else {
-        badge.className = "badge badge-warn";
-        badge.style.border = "1px solid #f59e0b";
-        badge.style.background = "rgba(245, 158, 11, 0.15)";
-        badge.style.color = "#f59e0b";
-        text.textContent = "FLASK ML: OFFLINE";
-        badge.title = "Python ML server unreachable at local port 5005 and Render. Live ML server required.";
+        _consecutiveMlFailures++;
+        if (_consecutiveMlFailures >= 2) {
+          badge.className = "badge badge-warn";
+          badge.style.border = "1px solid #f59e0b";
+          badge.style.background = "rgba(245, 158, 11, 0.15)";
+          badge.style.color = "#f59e0b";
+          if (dot) {
+            dot.style.background = "#f59e0b";
+            dot.style.boxShadow = "0 0 6px #f59e0b";
+          }
+          text.textContent = "FLASK ML: OFFLINE";
+          badge.title = "Python ML server unreachable. Click to recheck status.";
+        }
       }
     }
   }
