@@ -73,14 +73,12 @@
   }
 
   async function fetchDataset(filename) {
-    const isGhPages = typeof window !== "undefined" && window.location && window.location.pathname.includes("/MARISENTINEL_/");
     const candidatePaths = [
-      isGhPages ? `/MARISENTINEL_/public/data/${filename}` : `public/data/${filename}`,
-      `public/data/${filename}`,
-      `./public/data/${filename}`,
-      `data/${filename}`,
       `/data/${filename}`,
-      `/public/data/${filename}`
+      `data/${filename}`,
+      `./data/${filename}`,
+      `/public/data/${filename}`,
+      `public/data/${filename}`
     ];
     for (const p of candidatePaths) {
       try {
