@@ -183,11 +183,9 @@
       const res = await fetchWithFallback("/health", {}, 12000);
       if (res.ok) {
         const data = await res.json();
-        console.log("[MARISENTINEL ML] Backend connected:", activeApiBase, data);
         return { ok: true, endpoint: activeApiBase, ...data };
       }
     } catch (err) {
-      console.warn("[MARISENTINEL ML] Backend health check error:", err.message, "at", activeApiBase);
       return { ok: false, error: err.message, endpoint: activeApiBase };
     }
     return { ok: false, endpoint: activeApiBase };
