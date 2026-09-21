@@ -4,7 +4,7 @@ Combines Random Forest ML predictions (sole decision engine)
 with rule-based insights (explanation only).
 """
 
-from .mlService import predict_vessel
+from .mlService import predict_vessel, predict_vessels_batch
 
 CANONICAL_THREAT_RULES = {
     "Border Intrusion": {
@@ -144,3 +144,38 @@ def fuse_vessel_telemetry(vessel_data):
         "finalDecision": ml_output["level"],
         "explainability": True
     }
+
+def fuse_vessels_batch(vessels_list):
+    """
+    Fuses a batch of vessels using vectorized ML inference for high throughput.
+    """
+    if not vessels_list:
+        return []
+
+    ml_outputs = predict_vessels_batch(vessels_list)
+    results = []
+    for i, v in enumerate(vessels_list):
+        vessel_id = v.get("vesselId") or v.get("id") or "UNKNOWN"
+        ml_out = ml_outputs[i]
+        rule_out = evaluate_rules(v, ml_out["threatType"])
+        results.append({
+            "vesselId": vessel_id,
+            "mlPrediction": {
+                "riskScore": ml_out["riskScore"],
+                "level": ml_out["level"],
+                "threatType": ml_out["threatType"],
+                "confidence": ml_out["confidence"],
+                "contributingFeatures": ml_out.get("contributingFeatures", [])
+            },
+            "ruleInsights": {
+                "ruleId": rule_out["ruleId"],
+                "category": rule_out["category"],
+                "logic": rule_out["logic"],
+                "triggeredRules": rule_out["triggeredRules"],
+                "explainability": rule_out["explainability"],
+                "ruleScore": rule_out["ruleScore"]
+            },
+            "finalDecision": ml_out["level"],
+            "explainability": True
+        })
+    return results

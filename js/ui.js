@@ -462,9 +462,10 @@ window.MS_UI = (function () {
         if (fusion && fusion.checkBackendHealth) {
           const res = await fusion.checkBackendHealth();
           if (res && res.ok) {
-            showToast(`Connected to Flask ML (5005) - ${res.models?.risk_score_model?.n_estimators || 100} Trees Active`, "success");
+            const ep = res.endpoint && res.endpoint.includes("onrender.com") ? "Render Cloud" : "Port 5005";
+            showToast(`Connected to Flask ML (${ep}) - 100 Trees Active`, "success");
           } else {
-            showToast("Flask ML Server Offline on port 5005. Reconnecting...", "error");
+            showToast("Flask ML Server Offline. Reconnecting...", "error");
           }
         }
       });
@@ -613,7 +614,8 @@ window.MS_UI = (function () {
         badge.style.border = "1px solid #10b981";
         badge.style.background = "rgba(16, 185, 129, 0.15)";
         badge.style.color = "#10b981";
-        text.textContent = "FLASK ML: ONLINE (5005)";
+        const isRender = status.endpoint && status.endpoint.includes("onrender.com");
+        text.textContent = isRender ? "FLASK ML: RENDER ONLINE" : "FLASK ML: ONLINE (5005)";
         badge.title = `Connected to Python Flask Server at ${status.endpoint || 'http://127.0.0.1:5005'} · Dual Random Forest Active`;
       } else {
         badge.className = "badge badge-warn";
@@ -621,7 +623,7 @@ window.MS_UI = (function () {
         badge.style.background = "rgba(245, 158, 11, 0.15)";
         badge.style.color = "#f59e0b";
         text.textContent = "FLASK ML: OFFLINE";
-        badge.title = "Python ML server unreachable at port 5005. Backup fallback disabled; live ML server required.";
+        badge.title = "Python ML server unreachable at local port 5005 and Render. Live ML server required.";
       }
     }
   }

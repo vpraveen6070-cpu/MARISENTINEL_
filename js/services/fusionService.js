@@ -22,7 +22,7 @@
     "https://marisentinel-api.onrender.com"
   ];
   let activeApiBase = API_CANDIDATES[0];
-  const TIMEOUT_MS = 6000;
+  const TIMEOUT_MS = 15000;
 
   // Cache to optimize repeated evaluations
   const predictionCache = new Map();
@@ -149,7 +149,7 @@
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ vessels: payloads })
-    }, 7000);
+    }, 25000);
 
     if (res.ok) {
       const data = await res.json();
@@ -166,7 +166,7 @@
 
   async function checkBackendHealth() {
     try {
-      const res = await fetchWithFallback("/health", {}, 3000);
+      const res = await fetchWithFallback("/health", {}, 8000);
       if (res.ok) {
         const data = await res.json();
         return { ok: true, endpoint: activeApiBase, ...data };

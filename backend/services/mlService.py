@@ -196,5 +196,50 @@ def predict_vessel(data):
         "contributingFeatures": contributing_features
     }
 
+def predict_vessels_batch(vessels):
+    """
+    Vectorized batch ML inference across an array of vessels.
+    Runs regressor and classifier once on the entire 2D matrix for massive speedup.
+    """
+    if not vessels:
+        return []
+
+    bundle = get_model()
+    regressor = bundle["regressor"]
+    classifier = bundle["classifier"]
+
+    features_list = [extract_features(v) for v in vessels]
+    X = np.array(features_list)
+
+    raw_scores = regressor.predict(X)
+    probs = classifier.predict_proba(X)
+    threat_types = classifier.predict(X)
+
+    results = []
+    for i, features in enumerate(features_list):
+        risk_score = int(round(np.clip(float(raw_scores[i]), 0, 100)))
+        threat_type = str(threat_types[i])
+        confidence = round(float(np.max(probs[i])) * 100.0, 1)
+
+        if risk_score >= 70:
+            level = "HIGH"
+        elif risk_score >= 35:
+            level = "MEDIUM"
+        else:
+            level = "LOW"
+            if confidence < 50.0 and threat_type in ("Illegal Fishing", "Border Intrusion", "Dark Activity / Smuggling"):
+                threat_type = "Normal Transit"
+
+        contributing = calculate_instance_contributions(features, bundle)
+        results.append({
+            "riskScore": risk_score,
+            "level": level,
+            "threatType": threat_type,
+            "confidence": confidence,
+            "contributingFeatures": contributing
+        })
+
+    return results
+
 # Pre-load on import
 get_model()

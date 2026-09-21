@@ -9,7 +9,7 @@ import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from services.mlService import predict_vessel, get_model
-from services.fusionService import fuse_vessel_telemetry, evaluate_rules
+from services.fusionService import fuse_vessel_telemetry, evaluate_rules, fuse_vessels_batch
 
 app = Flask(__name__)
 # Enable CORS for all domains to support frontend execution
@@ -21,6 +21,20 @@ try:
     print("[*] Random Forest risk model loaded once at startup.")
 except Exception as e:
     print(f"[!] Warning: Model could not be pre-loaded at startup: {e}")
+
+@app.route("/", methods=["GET"])
+def root():
+    return jsonify({
+        "status": "online",
+        "service": "MARISENTINEL Hybrid AI Backend",
+        "endpoints": {
+            "health": "/health",
+            "modelInfo": "/model-info",
+            "predict": "/predict",
+            "fusion": "/fusion",
+            "batchPredict": "/batch-predict"
+        }
+    }), 200
 
 @app.route("/health", methods=["GET"])
 def health_check():
@@ -94,7 +108,7 @@ def batch_predict():
         if not isinstance(vessels, list):
             vessels = [vessels]
 
-        results = [fuse_vessel_telemetry(v) for v in vessels]
+        results = fuse_vessels_batch(vessels)
         return jsonify({"results": results}), 200
     except Exception as e:
         return jsonify({"error": f"Batch prediction failed: {str(e)}"}), 400
