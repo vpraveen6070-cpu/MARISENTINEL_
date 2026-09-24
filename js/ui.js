@@ -613,9 +613,24 @@ window.MS_UI = (function () {
           dot.style.background = "#10b981";
           dot.style.boxShadow = "0 0 6px #10b981";
         }
-        const isRender = status.endpoint && status.endpoint.includes("onrender.com");
-        text.textContent = isRender ? "FLASK ML: RENDER ONLINE" : "FLASK ML: ONLINE (5005)";
-        badge.title = `Connected to Python Flask Server at ${status.endpoint || 'Render Cloud'} · Dual Random Forest Active`;
+        const endpoint = (status.endpoint || "").toLowerCase();
+        const isPythonAnywhere = endpoint.includes("pythonanywhere.com");
+        const isRender = endpoint.includes("onrender.com");
+        const isLocal = endpoint.includes("127.0.0.1") || endpoint.includes("localhost");
+
+        if (isPythonAnywhere) {
+          text.textContent = "FLASK ML: CLOUD ONLINE";
+          badge.title = `Connected to PythonAnywhere Cloud ML Server (${status.endpoint}) · Dual Random Forest Active`;
+        } else if (isRender) {
+          text.textContent = "FLASK ML: RENDER ONLINE";
+          badge.title = `Connected to Render Cloud ML Server (${status.endpoint}) · Dual Random Forest Active`;
+        } else if (isLocal) {
+          text.textContent = "FLASK ML: LOCAL (5005)";
+          badge.title = `Connected to Local Python Flask Server (${status.endpoint}) · Dual Random Forest Active`;
+        } else {
+          text.textContent = "FLASK ML: ONLINE";
+          badge.title = `Connected to ML Server at ${status.endpoint} · Dual Random Forest Active`;
+        }
       } else {
         _consecutiveMlFailures++;
         if (_consecutiveMlFailures >= 2) {
