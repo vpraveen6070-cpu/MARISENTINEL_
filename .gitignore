@@ -38,6 +38,4 @@ figures/
 paper.md
 PAPER.md
 system-architecture.png
-/data/
-!public/data/
 .DS_Store

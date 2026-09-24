@@ -5,10 +5,9 @@
  */
 
 (function () {
-  const BASE_URL = "/data";
+  let _cachedPrefix = null;
 
   const MS_DATA = {
-    baseUrl: BASE_URL,
     _cache: {},
 
     /**
@@ -19,12 +18,13 @@
       if (!keyOrPath) return "";
       return keyOrPath
         .replace(/^\/?data\//, "")
+        .replace(/^\/?public\/data\//, "")
         .replace(/\.json$/, "")
         .trim();
     },
 
     /**
-     * Dynamically fetch a modular dataset from /data/<name>.json
+     * Dynamically fetch a modular dataset from /data/<name>.json or public/data/<name>.json
      * @param {string} datasetName - e.g. "vessels", "anomalies", "zones"
      * @param {boolean} [forceRefresh=false]
      */
@@ -36,19 +36,40 @@
         return this._cache[key];
       }
 
-      const url = `${this.baseUrl}/${key}.json`;
-      try {
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`Failed to load dataset '${key}' from ${url} [HTTP ${response.status}: ${response.statusText}]`);
-        }
-        const data = await response.json();
-        this._cache[key] = data;
-        return data;
-      } catch (err) {
-        console.error(`[MS_DATA] Error fetching dataset '${key}':`, err);
-        throw err;
+      // Try cached prefix first if known
+      if (_cachedPrefix) {
+        try {
+          const res = await fetch(`${_cachedPrefix}${key}.json`);
+          if (res.ok) {
+            const data = await res.json();
+            this._cache[key] = data;
+            return data;
+          }
+        } catch (_) {}
       }
+
+      const candidateUrls = [
+        `data/${key}.json`,
+        `public/data/${key}.json`,
+        `./data/${key}.json`,
+        `./public/data/${key}.json`,
+        `/data/${key}.json`,
+        `/public/data/${key}.json`
+      ];
+
+      for (const url of candidateUrls) {
+        try {
+          const response = await fetch(url);
+          if (response.ok) {
+            const data = await response.json();
+            this._cache[key] = data;
+            _cachedPrefix = url.substring(0, url.length - `${key}.json`.length);
+            return data;
+          }
+        } catch (_) {}
+      }
+
+      throw new Error(`Failed to load dataset '${key}' from all candidate paths`);
     },
 
     // Individual dataset accessors

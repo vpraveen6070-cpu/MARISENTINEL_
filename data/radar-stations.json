@@ -1,0 +1,7 @@
+[
+  { "name": "Visakhapatnam Naval Radar (CSCR-01)", "lat": 17.68, "lng": 83.35, "rangeKm": 65 },
+  { "name": "Paradip Port Surveillance Radar (CSCR-02)", "lat": 20.25, "lng": 86.70, "rangeKm": 70 },
+  { "name": "Gopalpur Defence Radar (CSCR-03)", "lat": 19.25, "lng": 84.95, "rangeKm": 60 },
+  { "name": "Chennai Coastal Radar (CSCR-04)", "lat": 13.10, "lng": 80.30, "rangeKm": 65 },
+  { "name": "Port Blair Tri-Command Radar (CSCR-05)", "lat": 11.68, "lng": 92.75, "rangeKm": 75 }
+]

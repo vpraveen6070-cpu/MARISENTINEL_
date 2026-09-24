@@ -72,18 +72,35 @@
     return (v, s) => "Normal";
   }
 
+  let _cachedDataPrefix = null;
+
   async function fetchDataset(filename) {
+    // If a working prefix was previously determined, try it first
+    if (_cachedDataPrefix) {
+      try {
+        const res = await fetch(`${_cachedDataPrefix}${filename}`);
+        if (res.ok) return await res.json();
+      } catch (_) {}
+    }
+
+    // Relative candidates first to work cleanly under GitHub Pages subpaths (e.g. /MARISENTINEL_/)
     const candidatePaths = [
-      `/data/${filename}`,
       `data/${filename}`,
+      `public/data/${filename}`,
       `./data/${filename}`,
-      `/public/data/${filename}`,
-      `public/data/${filename}`
+      `./public/data/${filename}`,
+      `/data/${filename}`,
+      `/public/data/${filename}`
     ];
+
     for (const p of candidatePaths) {
       try {
         const res = await fetch(p);
-        if (res.ok) return await res.json();
+        if (res.ok) {
+          // Cache prefix (everything before filename) for instant next loads
+          _cachedDataPrefix = p.substring(0, p.length - filename.length);
+          return await res.json();
+        }
       } catch (_) {}
     }
     throw new Error(`Unable to load dataset: ${filename}`);

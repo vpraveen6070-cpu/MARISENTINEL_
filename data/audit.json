@@ -1,0 +1,26 @@
+[
+  {
+    "id": "AUD-01",
+    "ts": "2026-09-14T13:59:52.559Z",
+    "user": "command",
+    "module": "Threat Intelligence",
+    "action": "Inspected telemetry & threat profile for MV Sagar Samrat (VS-001)",
+    "status": "success"
+  },
+  {
+    "id": "AUD-02",
+    "ts": "2026-09-14T13:46:52.559Z",
+    "user": "command",
+    "module": "Alerts",
+    "action": "Dispatched Interceptor IC-114 for restricted zone alert AL-1001",
+    "status": "success"
+  },
+  {
+    "id": "AUD-03",
+    "ts": "2026-09-14T13:20:52.559Z",
+    "user": "admin",
+    "module": "Security Zones",
+    "action": "Validated geofence boundaries for Visakhapatnam Naval Anchorage",
+    "status": "success"
+  }
+]
