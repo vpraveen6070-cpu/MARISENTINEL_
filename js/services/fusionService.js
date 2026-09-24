@@ -20,17 +20,19 @@
 
   const customApi = (typeof window !== "undefined" && window.MARISENTINEL_API_BASE) ? window.MARISENTINEL_API_BASE : null;
 
-  // On HTTPS origins (e.g. GitHub Pages), prioritize HTTPS Render endpoint to avoid Mixed Content block.
+  // On HTTPS origins (e.g. GitHub Pages), prioritize PythonAnywhere production endpoint.
   // On localhost, prioritize local Flask port 5005.
   const API_CANDIDATES = [
     ...(customApi ? [customApi] : []),
     ...(isHttps || !isLocalHost ? [
+      "https://praveenkumar441.pythonanywhere.com",
       "https://marisentinel-api.onrender.com",
       "http://127.0.0.1:5005",
       "http://localhost:5005"
     ] : [
       "http://127.0.0.1:5005",
       "http://localhost:5005",
+      "https://praveenkumar441.pythonanywhere.com",
       "https://marisentinel-api.onrender.com"
     ])
   ];
