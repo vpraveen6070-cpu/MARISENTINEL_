@@ -41,7 +41,6 @@ def health_check():
     return jsonify({
         "status": "healthy",
         "service": "MARISENTINEL Hybrid AI Backend",
-        "port": 5005,
         "engine": "Random Forest (Dual Regressor + Classifier)"
     }), 200
 

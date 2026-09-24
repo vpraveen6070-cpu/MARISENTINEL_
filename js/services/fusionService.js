@@ -26,14 +26,12 @@
     ...(customApi ? [customApi] : []),
     ...(isHttps || !isLocalHost ? [
       "https://praveenkumar441.pythonanywhere.com",
-      "https://marisentinel-api.onrender.com",
       "http://127.0.0.1:5005",
       "http://localhost:5005"
     ] : [
       "http://127.0.0.1:5005",
       "http://localhost:5005",
-      "https://praveenkumar441.pythonanywhere.com",
-      "https://marisentinel-api.onrender.com"
+      "https://praveenkumar441.pythonanywhere.com"
     ])
   ];
   let activeApiBase = API_CANDIDATES[0];

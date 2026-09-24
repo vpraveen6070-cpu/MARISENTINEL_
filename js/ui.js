@@ -615,15 +615,11 @@ window.MS_UI = (function () {
         }
         const endpoint = (status.endpoint || "").toLowerCase();
         const isPythonAnywhere = endpoint.includes("pythonanywhere.com");
-        const isRender = endpoint.includes("onrender.com");
         const isLocal = endpoint.includes("127.0.0.1") || endpoint.includes("localhost");
 
         if (isPythonAnywhere) {
           text.textContent = "FLASK ML: CLOUD ONLINE";
           badge.title = `Connected to PythonAnywhere Cloud ML Server (${status.endpoint}) · Dual Random Forest Active`;
-        } else if (isRender) {
-          text.textContent = "FLASK ML: RENDER ONLINE";
-          badge.title = `Connected to Render Cloud ML Server (${status.endpoint}) · Dual Random Forest Active`;
         } else if (isLocal) {
           text.textContent = "FLASK ML: LOCAL (5005)";
           badge.title = `Connected to Local Python Flask Server (${status.endpoint}) · Dual Random Forest Active`;
