@@ -167,6 +167,11 @@
             window.msStore.setState((s) => {
               const currentVessels = s.vessels || [];
               const updated = currentVessels.map((v, idx) => {
+                // NEVER overwrite a vessel that is an active threat, has an active alert, or is assigned
+                const hasActiveAlert = (s.alerts || []).some(a => (a.vesselId === v.id || a.vesselId === v.vesselId || a.vesselName === v.name) && a.status !== "False Alarm" && a.status !== "Resolved");
+                if (hasActiveAlert || v.level === "HIGH" || (v.riskScore || 0) >= 70 || v.assigned || v.isAssigned) {
+                  return v;
+                }
                 const fused = evaluated[idx] || (fusionService ? fusionService.getCached(v.vesselId || v.id) : null);
                 if (!fused) return v;
                 const mlPred = fused.mlPrediction;
@@ -224,6 +229,26 @@
       this.queueEmptyTimestamp = null;
       this.isGeneratingThreat = false;
       this.ready = this.init();
+
+      if (typeof window !== "undefined") {
+        window.addEventListener("storage", (e) => {
+          if (e.key === STORAGE_KEY && e.newValue) {
+            try {
+              const parsed = JSON.parse(e.newValue);
+              if (parsed && Array.isArray(parsed.alerts)) {
+                this.state = {
+                  ...this.state,
+                  ...parsed,
+                  session: this.state.session || parsed.session
+                };
+                this.notify();
+              }
+            } catch (err) {
+              console.warn("[MsStore] Cross-tab storage sync error:", err);
+            }
+          }
+        });
+      }
     }
 
     getInitialFallbackState() {
@@ -329,7 +354,7 @@
           const parsed = JSON.parse(saved);
           const rawVessels = parsed.vessels && parsed.vessels.length ? parsed.vessels : seed.vessels || [];
 
-          const rawAlerts = (parsed.alerts && parsed.alerts.length) ? parsed.alerts : (seed.alerts || []);
+          const rawAlerts = Array.isArray(parsed.alerts) ? parsed.alerts : (seed.alerts || []);
           const activeAlerts = rawAlerts.filter((a) => !a.id || !a.id.startsWith("AL-100"));
           const activeIncidents = (Array.isArray(parsed.incidents) ? parsed.incidents : (seed.incidents || [])).filter((i) => i && i.id !== "INC-8492" && i.id !== "INC-7104" && i.id !== "INC-1001" && i.id !== "INC-1002");
 
@@ -352,15 +377,19 @@
               lng = cLng;
             }
 
-            // Continuous ML Model score from Random Forest (seedV / ML Fusion)
-            const score = (typeof seedV.riskScore === "number")
-              ? seedV.riskScore
-              : (typeof v.riskScore === "number" ? v.riskScore : (typeof seedV.risk === "number" ? seedV.risk : 15));
-            const level = seedV.level || v.level || (score >= 70 ? "HIGH" : score >= 35 ? "MEDIUM" : "LOW");
-            const threatType = seedV.threatType || v.threatType || (level === "HIGH" ? "Dark Activity / Smuggling" : "Normal Transit");
-            const confidence = typeof seedV.confidence === "number" ? seedV.confidence : (typeof v.confidence === "number" ? v.confidence : (level === "HIGH" ? 92.4 : 96.0));
-            const contributingFeatures = seedV.contributingFeatures || v.contributingFeatures || [];
-            const reasons = (seedV.reasons && seedV.reasons.length) ? seedV.reasons : (v.reasons || v.behaviours || []);
+            const hasActiveIncident = (activeIncidents || []).some(i => i.status !== "Closed" && (i.vesselId === (v.vesselId || v.id) || i.vesselName === v.name));
+            const hasActiveAlert = (activeAlerts || []).some(a => (a.vesselId === (v.vesselId || v.id) || a.vesselName === v.name) && a.status === "New");
+            const isThreat = hasActiveIncident || hasActiveAlert;
+
+            // Real-time calculated score: active threats maintain high risk, remaining vessels are nominal
+            const score = isThreat
+              ? (typeof v.riskScore === "number" && v.riskScore >= 70 ? v.riskScore : (hasActiveIncident ? 82 : 86))
+              : ((typeof v.riskScore === "number" && v.riskScore < 35) ? v.riskScore : (12 + (Math.abs(parseInt(mergedVessel.mmsi || "10", 10)) % 6)));
+            const level = isThreat ? "HIGH" : "LOW";
+            const threatType = isThreat ? (v.threatType || "High Risk Anomaly") : "Normal Transit";
+            const confidence = isThreat ? (typeof v.confidence === "number" ? v.confidence : 92.4) : 96.0;
+            const contributingFeatures = isThreat ? (v.contributingFeatures || []) : [];
+            const reasons = isThreat ? (v.reasons && v.reasons.length ? v.reasons : (v.behaviours && v.behaviours.length ? v.behaviours : ["Route Deviation + Near Border"])) : [];
 
             return {
               ...mergedVessel,
@@ -375,7 +404,10 @@
               confidence,
               contributingFeatures,
               reasons,
-              behaviours: reasons
+              behaviours: reasons,
+              assigned: hasActiveIncident,
+              isAssigned: hasActiveIncident,
+              status: hasActiveIncident ? "In Process" : hasActiveAlert ? "Threat" : "Nominal"
             };
           });
 
@@ -496,7 +528,6 @@
         users: [...s.users, newUser]
       }));
       this.logAudit("User Management", `Created operator account for ${name} (${role})`);
-      if (window.MS_UI) window.MS_UI.showToast(`User ${name} created successfully.`);
     }
 
     updateUser(userId, fields) {
@@ -506,7 +537,6 @@
       }));
       const u = this.state.users.find((x) => x.id === userId);
       this.logAudit("User Management", `Updated account details for ${u?.name || userId}`);
-      if (window.MS_UI) window.MS_UI.showToast(`User account updated.`);
     }
 
     toggleUserStatus(userId) {
@@ -541,7 +571,6 @@
       });
       const u = this.state.users.find((x) => x.id === userId);
       this.logAudit("User Management", `Changed ${u?.name || userId} status to ${nextStatus}`);
-      if (window.MS_UI) window.MS_UI.showToast(`User status set to ${nextStatus}.`);
     }
 
     deleteUser(userId) {
@@ -561,7 +590,6 @@
         )
       }));
       this.logAudit("User Management", `Deleted operator account for ${u?.name || userId}. Reset assigned alerts & missions.`);
-      if (window.MS_UI) window.MS_UI.showToast(`User ${u?.name || userId} removed. Assigned alerts reset to NEW.`);
     }
 
     addZone(name, classification, lat, lng, radiusKm, description) {
@@ -588,7 +616,6 @@
         "info",
         { targetRoles: ["administrator"] }
       );
-      if (window.MS_UI) window.MS_UI.showToast(`Security Zone ${name} established.`);
     }
 
     toggleZoneStatus(zoneId) {
@@ -612,7 +639,6 @@
         "info",
         { targetRoles: ["administrator"] }
       );
-      if (window.MS_UI) window.MS_UI.showToast(`Zone status: ${nextStatus}.`);
     }
 
     updateZoneRadius(zoneId, radiusKm) {
@@ -642,7 +668,6 @@
         "info",
         { targetRoles: ["administrator"] }
       );
-      if (window.MS_UI) window.MS_UI.showToast(`Zone ${z?.name || zoneId} removed.`);
     }
 
     toggleRuleStatus(ruleId) {
@@ -666,7 +691,6 @@
         "info",
         { targetRoles: ["administrator"] }
       );
-      if (window.MS_UI) window.MS_UI.showToast(`Rule ${r?.name || ruleId}: ${nextStatus}.`);
     }
 
     updateRuleWeight(ruleId, weight) {
@@ -677,7 +701,6 @@
       }));
       const r = this.state.threatRules.find((x) => x.id === ruleId);
       this.logAudit("Threat Rules", `Updated weight for ${r?.name || ruleId} to +${w} pts`);
-      if (window.MS_UI) window.MS_UI.showToast(`Rule weight updated to +${w} pts.`);
     }
 
     addThreatRule(name, description, weight) {
@@ -693,7 +716,6 @@
         threatRules: [...(s.threatRules || []), newRule]
       }));
       this.logAudit("Threat Rules", `Defined threat rule ${name} (+${newRule.weight} pts)`);
-      if (window.MS_UI) window.MS_UI.showToast(`Threat rule ${name} created.`);
     }
 
     toggleSource(sourceId) {
@@ -711,7 +733,6 @@
       }));
       const updated = this.state.sources.find((x) => x.id === sourceId);
       this.logAudit("Data Sources", `Updated data source ${updated?.name} status to ${updated?.status}`);
-      if (window.MS_UI) window.MS_UI.showToast(`Source ${updated?.name} status: ${updated?.status}`);
     }
 
     /* ---------------- Notification Hub ---------------- */
@@ -747,7 +768,6 @@
         ...s,
         notifications: (s.notifications || []).map((n) => ({ ...n, read: true }))
       }));
-      if (window.MS_UI) window.MS_UI.showToast("All notifications marked as read.");
     }
 
     clearNotifications(role) {
@@ -766,7 +786,6 @@
         })
       }));
       this.saveState();
-      if (window.MS_UI) window.MS_UI.showToast(`${targetRole === 'administrator' ? 'Admin' : targetRole === 'command' ? 'Command' : 'Field'} notifications cleared.`);
     }
 
     /* ---------------- Audit Logging ---------------- */
@@ -819,7 +838,7 @@
       this.setState((s) => ({
         ...s,
         alerts: s.alerts.map((a) => (a.id === alertId || (alert.vesselId && (a.vesselId === alert.vesselId || a.id === alert.vesselId)) || (alert.vesselName && a.vesselName === alert.vesselName) ? { ...a, status: "Assigned", assignedTo: assignedOfficerId } : a)),
-        vessels: (s.vessels || []).map((v) => ((alert.vesselId && (v.id === alert.vesselId || v.vesselId === alert.vesselId)) || (alert.vesselName && v.name === alert.vesselName) ? { ...v, assigned: true, status: "Assigned", assignedTo: assignedOfficerId } : v)),
+        vessels: (s.vessels || []).map((v) => ((alert.vesselId && (v.id === alert.vesselId || v.vesselId === alert.vesselId)) || (alert.vesselName && v.name === alert.vesselName) ? { ...v, assigned: true, isAssigned: true, status: "In Process", assignedTo: assignedOfficerId } : v)),
         incidents: [newInc, ...s.incidents],
         users: s.users.map((u) => (u.id === assignedOfficerId ? { ...u, availability: "on-mission" } : u))
       }));
@@ -831,7 +850,7 @@
         "high",
         { targetRoles: ["field"], incidentId: newInc.id, vesselId: alert.vesselId }
       );
-      if (window.MS_UI) window.MS_UI.showToast(`Alert confirmed. ${newInc.id} dispatched to ${officer?.name || "field"}.`);
+      setTimeout(() => this.checkAndGenerateAutonomousThreat(), 300);
     }
 
     createIncident(title, category, vesselName, riskLevel, risk, assignedOfficerId, lat, lng, description) {
@@ -866,7 +885,7 @@
         ...s,
         vessels: (s.vessels || []).map((x) =>
           x.name === vesselName || x.id === vesselName || x.vesselId === vesselName
-            ? { ...x, assigned: true, status: "Assigned", assignedTo: assignedOfficerId }
+            ? { ...x, assigned: true, isAssigned: true, status: "In Process", assignedTo: assignedOfficerId }
             : x
         ),
         alerts: (s.alerts || []).map((a) =>
@@ -885,7 +904,7 @@
         risk >= 80 ? "critical" : "high",
         { targetRoles: ["field"], incidentId: newInc.id }
       );
-      if (window.MS_UI) window.MS_UI.showToast(`Incident ${newInc.id} created & assigned.`);
+      setTimeout(() => this.checkAndGenerateAutonomousThreat(), 300);
     }
 
     escalateVesselToIncident(vesselId, assignedOfficerId = "usr-field-1") {
@@ -926,7 +945,7 @@
         ),
         vessels: (s.vessels || []).map((x) =>
           x.id === v.id || x.vesselId === v.vesselId || x.name === v.name
-            ? { ...x, assigned: true, status: "Assigned", assignedTo: assignedOfficerId }
+            ? { ...x, assigned: true, isAssigned: true, status: "In Process", assignedTo: assignedOfficerId }
             : x
         ),
         incidents: [newInc, ...s.incidents],
@@ -940,7 +959,7 @@
         "critical",
         { targetRoles: ["field"], incidentId: newInc.id, vesselId: v.id }
       );
-      if (window.MS_UI) window.MS_UI.showToast(`Threat escalated! Incident ${newInc.id} dispatched to ${officer?.name || "unit"}.`);
+      setTimeout(() => this.checkAndGenerateAutonomousThreat(), 300);
     }
 
     assignVesselToFieldOfficer(vesselId, assignedOfficerId = "usr-field-1") {
@@ -959,7 +978,7 @@
           ),
           vessels: (s.vessels || []).map((x) =>
             x.id === v.id || x.vesselId === v.vesselId || x.name === v.name
-              ? { ...x, assigned: true, status: "Assigned", assignedTo: officer?.id || assignedOfficerId }
+              ? { ...x, assigned: true, isAssigned: true, status: "In Process", assignedTo: officer?.id || assignedOfficerId }
               : x
           ),
           incidents: s.incidents.map((i) =>
@@ -991,7 +1010,7 @@
           "high",
           { targetRoles: ["field"], incidentId: existingInc.id, vesselId: v.id }
         );
-        if (window.MS_UI) window.MS_UI.showToast(`Mission assigned to ${officer?.name || "Field Officer"} (Active Mission).`);
+        setTimeout(() => this.checkAndGenerateAutonomousThreat(), 300);
       } else {
         this.escalateVesselToIncident(v.id, officer?.id || assignedOfficerId);
       }
@@ -1008,16 +1027,34 @@
         "info",
         { targetRoles: ["command", "administrator"], vesselId: v.id }
       );
-      if (window.MS_UI) window.MS_UI.showToast(`📡 AIS Challenge transmitted to ${v.name} (Ch 16 / DSC).`);
     }
 
     rejectAlert(alertId) {
+      const alert = (this.state.alerts || []).find((a) => a.id === alertId);
       this.setState((s) => ({
         ...s,
-        alerts: s.alerts.map((a) => (a.id === alertId ? { ...a, status: "False Alarm" } : a))
+        alerts: s.alerts.map((a) => (a.id === alertId || (alert && ((alert.vesselId && (a.vesselId === alert.vesselId || a.id === alert.vesselId)) || (alert.vesselName && a.vesselName === alert.vesselName))) ? { ...a, status: "False Alarm" } : a)),
+        vessels: (s.vessels || []).map((v) => {
+          if (alert && (v.id === alert.vesselId || v.vesselId === alert.vesselId || v.name === alert.vesselName)) {
+            return {
+              ...v,
+              assigned: false,
+              isAssigned: false,
+              status: "Nominal",
+              assignedTo: null,
+              riskScore: 14,
+              risk: 14,
+              level: "LOW",
+              threatType: "Normal Transit",
+              reasons: [],
+              behaviours: []
+            };
+          }
+          return v;
+        })
       }));
-      this.logAudit("Alerts", `Dismissed alert ${alertId} as false alarm`);
-      if (window.MS_UI) window.MS_UI.showToast("Alert marked as False Alarm");
+      this.logAudit("Alerts", `Dismissed alert ${alertId} as false alarm. Contact returned to normal.`);
+      setTimeout(() => this.checkAndGenerateAutonomousThreat(), 300);
     }
 
     updateIncidentStatus(incidentId, status, note) {
@@ -1057,7 +1094,6 @@
         status === "Request Interception" ? "critical" : "high",
         { targetRoles, incidentId }
       );
-      if (window.MS_UI) window.MS_UI.showToast(`Incident status: ${status}`);
     }
 
     addIncidentNote(incidentId, noteText) {
@@ -1077,7 +1113,6 @@
         )
       }));
       this.logAudit("Incidents", `Field note logged for ${incidentId}: "${noteText}"`);
-      if (window.MS_UI) window.MS_UI.showToast("Field observation logged to timeline.");
     }
 
     addIncidentEvidence(incidentId, evidenceObj) {
@@ -1113,7 +1148,6 @@
         "info",
         { targetRoles, incidentId }
       );
-      if (window.MS_UI) window.MS_UI.showToast(`Evidence ${evidenceObj.name} saved.`);
     }
 
     rejectIncident(incidentId, reason = "Operational conflict / vessel out of intercept range.") {
@@ -1155,7 +1189,6 @@
         "high",
         { targetRoles: ["command"], incidentId }
       );
-      if (window.MS_UI) window.MS_UI.showToast(`Mission assignment declined.`);
     }
 
     simulateOfficerMovement(officerId = "usr-field-1", targetIncidentId) {
@@ -1163,7 +1196,6 @@
         targetIncidentId ? i.id === targetIncidentId : i.status !== "Closed" && i.assignedTo === officerId
       );
       if (!inc) {
-        if (window.MS_UI) window.MS_UI.showToast("No active mission target for movement simulation.");
         return;
       }
 
@@ -1186,7 +1218,6 @@
           return u;
         })
       }));
-      if (window.MS_UI) window.MS_UI.showToast("⚡ Interceptor craft underway toward target contact...");
     }
 
     closeIncident(incidentId, findings = "Mission completed successfully.") {
@@ -1194,6 +1225,34 @@
       const inc = this.state.incidents.find((i) => i.id === incidentId);
       this.setState((s) => ({
         ...s,
+        vessels: (s.vessels || []).map((v) => {
+          if (inc && (v.id === inc.vesselId || v.vesselId === inc.vesselId || v.name === inc.vesselName)) {
+            return {
+              ...v,
+              assigned: false,
+              isAssigned: false,
+              status: "Nominal",
+              assignedTo: null,
+              riskScore: 14,
+              risk: 14,
+              level: "LOW",
+              threatType: "Normal Transit",
+              reasons: [],
+              behaviours: []
+            };
+          }
+          return v;
+        }),
+        alerts: (s.alerts || []).map((a) => {
+          if (inc && (
+            (inc.vesselId && (a.vesselId === inc.vesselId || a.id === inc.vesselId)) ||
+            (inc.vesselName && a.vesselName === inc.vesselName) ||
+            a.incidentId === incidentId
+          )) {
+            return { ...a, status: "Resolved" };
+          }
+          return a;
+        }),
         incidents: s.incidents.map((i) =>
           i.id === incidentId
             ? {
@@ -1217,7 +1276,6 @@
         "info",
         { targetRoles: ["field", "administrator"], incidentId }
       );
-      if (window.MS_UI) window.MS_UI.showToast(`Incident ${incidentId} closed & archived.`);
     }
 
     getIncidentStats() {
@@ -1348,6 +1406,7 @@
         return; // Skip simulation engine on login screen
       }
       if (this.timer) clearInterval(this.timer);
+      setTimeout(() => this.checkAndGenerateAutonomousThreat(), 600);
       this.timer = setInterval(() => {
         if (!this.state.simRunning) return;
         this.tick();
@@ -1356,9 +1415,6 @@
 
     toggleSimulation() {
       this.setState((s) => ({ ...s, simRunning: !s.simRunning }));
-      if (window.MS_UI) {
-        window.MS_UI.showToast(this.state.simRunning ? "Live Monitoring Resumed" : "Live Simulation Paused");
-      }
     }
 
     tick() {
@@ -1427,32 +1483,36 @@
             aisOff: v.aisOff ?? (v.ais === "lost")
           };
 
-          // ML output is the primary authority
-          const mlScore = typeof v.riskScore === "number" ? v.riskScore : (v.risk ?? 15);
-          const level = v.level || (mlScore >= 70 ? "HIGH" : mlScore >= 35 ? "MEDIUM" : "LOW");
-          const threatType = v.threatType || (level === "HIGH" ? "Dark Activity / Smuggling" : level === "MEDIUM" ? "Suspicious Loitering" : "Normal Transit");
-          const confidence = typeof v.confidence === "number" ? v.confidence : (level === "HIGH" ? 92.4 : 96.0);
+          const hasActiveIncident = (s.incidents || []).some(i => (i.vesselId === (v.vesselId || v.id) || i.vesselName === v.name) && i.status !== "Closed");
+          const hasActiveAlert = (s.alerts || []).some(a => (a.vesselId === (v.vesselId || v.id) || a.vesselName === v.name) && a.status === "New");
+          const isThreat = hasActiveIncident || hasActiveAlert;
+
+          // Real-time calculated score: active threats maintain high risk, remaining vessels are nominal
+          let mlScore = isThreat
+            ? (typeof v.riskScore === "number" && v.riskScore >= 70 ? v.riskScore : (hasActiveIncident ? 82 : 86))
+            : ((typeof v.riskScore === "number" && v.riskScore < 35) ? v.riskScore : (12 + (Math.abs(parseInt(v.mmsi || "10", 10)) % 6)));
+          const level = isThreat ? "HIGH" : "LOW";
+          const threatType = isThreat ? (v.threatType && v.threatType !== "Normal Transit" ? v.threatType : "High Risk Anomaly") : "Normal Transit";
+          const confidence = isThreat ? (typeof v.confidence === "number" ? v.confidence : 92.4) : 96.0;
 
           // Heuristic rule explanation evaluation correlated to AI threat
           const ruleEval = ruleEngine ? ruleEngine.evaluateRules(candidate, threatType) : { triggeredRules: [], ruleScore: 0, explainability: "" };
-          const triggeredRules = ruleEval.triggeredRules || [];
-          const ruleScore = ruleEval.ruleScore || 0;
-          const explainability = ruleEval.explainability || "";
-          const ruleLogic = ruleEval.logic || (triggeredRules[0] || "Route Deviation + Near Border");
+          const triggeredRules = isThreat ? (ruleEval.triggeredRules && ruleEval.triggeredRules.length ? ruleEval.triggeredRules : (v.reasons && v.reasons.length ? v.reasons : ["Route Deviation + Near Border"])) : [];
+          const ruleScore = isThreat ? (ruleEval.ruleScore || mlScore) : 0;
+          const explainability = isThreat ? (ruleEval.explainability || "") : "";
+          const ruleLogic = isThreat ? (ruleEval.logic || (triggeredRules[0] || "Anomaly Detected")) : "Nominal Navigation";
 
-          // STEP 5: Trigger alert ONLY based on ML level (level === "HIGH")
-          const isVesselAssigned = v.assigned || v.isAssigned || v.status === "Assigned" ||
-            (s.incidents || []).some(i => (i.vesselId === v.id || i.vesselId === v.vesselId || i.vesselName === v.name) && i.status !== "Closed") ||
-            (s.alerts || []).some(a => (a.vesselId === v.id || a.vesselId === v.vesselId || a.vesselName === v.name) && (a.status === "Assigned" || a.assignedTo));
+          const status = hasActiveIncident ? "In Process" : hasActiveAlert ? "Threat" : "Nominal";
+          const isVesselAssigned = hasActiveIncident;
 
           if (level === "HIGH" && !isVesselAssigned) {
-            const existingAlertIndex = (s.alerts || []).findIndex(a => a.vesselId === (v.vesselId || v.id) || a.vesselName === v.name);
+            const existingAlertIndex = (s.alerts || []).findIndex(a => (a.vesselId === (v.vesselId || v.id) || a.vesselName === v.name) && a.status === "New");
             const severity = mlScore >= 85 ? "Critical" : "High";
             const zoneText = activeZoneName !== "Open water" ? activeZoneName : `${v.destination || 'Bay of Bengal'} (${Math.round(nextLat * 100) / 100}°N, ${Math.round(nextLng * 100) / 100}°E)`;
 
             if (existingAlertIndex === -1) {
               const newAlert = {
-                id: "AL-" + Math.floor(Math.random() * 9000 + 1000),
+                id: "AL-" + Date.now().toString().slice(-6) + "-" + Math.floor(Math.random() * 900 + 100),
                 ts: new Date().toISOString(),
                 vesselId: v.vesselId || v.id,
                 vesselName: v.name,
@@ -1470,11 +1530,6 @@
                 explainability
               };
               newAlerts.push(newAlert);
-
-              // Show alert popup / toast
-              if (typeof window !== "undefined" && window.MS_UI && window.MS_UI.showToast) {
-                window.MS_UI.showToast(`🚨 High Threat Alert: ${v.name} (${threatType} · ${mlScore}/100)`, "error");
-              }
             }
           }
 
@@ -1504,6 +1559,9 @@
             ruleLogic,
             explainability,
             trail,
+            assigned: hasActiveIncident,
+            isAssigned: hasActiveIncident,
+            status,
             lastUpdate: new Date().toISOString()
           };
         });
@@ -1546,7 +1604,7 @@
             }
             return a;
           })
-          .filter(a => (a.risk >= 35 && a.severity !== "Low"));
+          .filter(a => a.status === "New" || a.status === "Assigned" || !!a.assignedTo || (a.risk >= 35 && a.severity !== "Low"));
 
         const alerts = [...newAlerts, ...updatedAlerts];
 
@@ -1565,13 +1623,6 @@
 
     async checkAndGenerateAutonomousThreat() {
       if (this.isGeneratingThreat) return;
-      const now = Date.now();
-
-      // Ensure cooldown of at least 25s between automatic generations
-      if (this.lastThreatGeneratedAt && (now - this.lastThreatGeneratedAt < 25000)) {
-        return;
-      }
-
       const s = this.state;
       if (!s || !s.simRunning) return;
 
@@ -1590,7 +1641,7 @@
         }
       });
       (s.vessels || []).forEach(v => {
-        if (v.assigned || v.isAssigned || v.status === "Assigned") {
+        if (v.assigned || v.isAssigned || v.status === "Assigned" || v.status === "In Process") {
           if (v.id) assignedVesselKeys.add(String(v.id).trim());
           if (v.vesselId) assignedVesselKeys.add(String(v.vesselId).trim());
           if (v.name) assignedVesselKeys.add(String(v.name).trim());
@@ -1602,138 +1653,158 @@
         if (a.status === "Assigned" || a.assignedTo || a.status === "Resolved" || a.status === "False Alarm") return false;
         if (a.vesselId && assignedVesselKeys.has(String(a.vesselId).trim())) return false;
         if (a.vesselName && assignedVesselKeys.has(String(a.vesselName).trim())) return false;
-        return (a.risk || 0) >= 70;
+        return (a.risk || 0) >= 70 || a.severity === "Critical" || a.severity === "High";
       });
 
-      // Condition: If all critical threats have been assigned (queue is 0), wait 10 seconds before generating a new threat
-      // Or if the queue has fewer than 2 threats and it has been > 60 seconds
-      const queueEmpty = unassignedActiveAlerts.length === 0;
-      if (queueEmpty) {
-        if (!this.queueEmptyTimestamp) {
-          this.queueEmptyTimestamp = now;
-          return;
-        }
-        if (now - this.queueEmptyTimestamp < 10000) {
-          return;
-        }
-      } else {
-        this.queueEmptyTimestamp = null;
-        if (unassignedActiveAlerts.length >= 2 || (this.lastThreatGeneratedAt && (now - this.lastThreatGeneratedAt < 60000))) {
-          return;
-        }
+      // STRICT GLOBAL RULE:
+      // If there are ALREADY active unassigned critical threats (> 0):
+      // DO NOT generate new threats! Once generated, they remain globally visible across all tabs and will NOT re-generate on 2nd open / refresh.
+      if (unassignedActiveAlerts.length > 0) {
+        return;
       }
+
+      // ACTIVE THREATS ARE ZERO: Immediately generate a batch of 3 to 4 threats!
+      this.isGeneratingThreat = true;
 
       // Filter available unassigned candidate vessels from the fleet
       const candidates = (s.vessels || []).filter(v => {
         const vId = String(v.vesselId || v.id || "").trim();
         const vName = String(v.name || "").trim();
         if (assignedVesselKeys.has(vId) || assignedVesselKeys.has(vName)) return false;
-        if (v.assigned || v.isAssigned || v.status === "Assigned") return false;
+        if (v.assigned || v.isAssigned || v.status === "Assigned" || v.status === "In Process") return false;
         if (vName.startsWith("CG ") || (v.type && v.type.toLowerCase().includes("patrol"))) return false;
-        if ((v.riskScore || v.risk || 0) >= 70) return false;
         return true;
       });
 
-      if (!candidates.length) return;
+      if (!candidates.length) {
+        this.isGeneratingThreat = false;
+        return;
+      }
+
+      // Pick 3 to 4 distinct candidate vessels
+      const shuffled = [...candidates].sort(() => 0.5 - Math.random());
+      const batchCount = Math.min(4, Math.max(3, shuffled.length));
+      const selectedVessels = shuffled.slice(0, batchCount);
 
       const scenarios = this.getAutonomousScenarios();
-      const scenario = scenarios[this.anomalyCycleIndex % scenarios.length];
-      this.anomalyCycleIndex = (this.anomalyCycleIndex + 1) % scenarios.length;
-
-      // Pick random candidate vessel
-      const targetVessel = candidates[Math.floor(Math.random() * candidates.length)];
-      this.isGeneratingThreat = true;
-      this.lastThreatGeneratedAt = now;
-      this.queueEmptyTimestamp = null;
+      const fusionService = (typeof window !== "undefined" && window.MS_FUSION) ? window.MS_FUSION : null;
 
       try {
-        const fusionService = (typeof window !== "undefined" && window.MS_FUSION) ? window.MS_FUSION : null;
-        if (!fusionService || !fusionService.evaluateVessel) {
-          this.isGeneratingThreat = false;
-          return;
-        }
+        const batchPromises = selectedVessels.map(async (targetVessel, idx) => {
+          const scenario = scenarios[(this.anomalyCycleIndex + idx) % scenarios.length];
+          const candidatePayload = {
+            ...targetVessel,
+            ...scenario.telemetry,
+            lat: scenario.lat,
+            lng: scenario.lng,
+            destination: scenario.zoneName
+          };
 
-        const candidatePayload = {
-          ...targetVessel,
-          ...scenario.telemetry,
-          lat: scenario.lat,
-          lng: scenario.lng,
-          destination: scenario.zoneName
-        };
+          let fusedResult = null;
+          if (fusionService && fusionService.evaluateVessel) {
+            try {
+              fusedResult = await fusionService.evaluateVessel(candidatePayload);
+            } catch (err) {
+              console.warn("[Autonomous ML] evaluateVessel fallback for", targetVessel.name, err);
+            }
+          }
 
-        // Query live Python Random Forest ML Model at port 5005 (/predict)
-        const fusedResult = await fusionService.evaluateVessel(candidatePayload);
-        if (!fusedResult || !fusedResult.mlPrediction) {
-          this.isGeneratingThreat = false;
-          return;
-        }
+          const ml = (fusedResult && fusedResult.mlPrediction) ? fusedResult.mlPrediction : {
+            riskScore: scenario.type.includes("Smuggling") ? 88 : scenario.type.includes("Border") ? 86 : scenario.type.includes("Fishing") ? 82 : 78,
+            level: "HIGH",
+            threatType: scenario.type,
+            confidence: 94.5
+          };
+          const rules = (fusedResult && fusedResult.ruleInsights) ? fusedResult.ruleInsights : {};
+          const riskScore = ml.riskScore || 80;
+          const threatType = ml.threatType || scenario.type;
+          const severity = riskScore >= 80 ? "Critical" : "High";
 
-        const ml = fusedResult.mlPrediction;
-        const rules = fusedResult.ruleInsights || {};
-        const riskScore = ml.riskScore || 80;
-        const threatType = ml.threatType || scenario.type;
-        const severity = riskScore >= 80 ? "Critical" : "High";
+          const newAlert = {
+            id: "AL-" + Date.now().toString().slice(-6) + "-" + Math.floor(Math.random() * 900 + 100),
+            ts: new Date(Date.now() - (batchCount - idx - 1) * 30000).toISOString(),
+            vesselId: targetVessel.vesselId || targetVessel.id,
+            vesselName: targetVessel.name,
+            vesselType: targetVessel.type,
+            threatType,
+            risk: riskScore,
+            level: ml.level || "HIGH",
+            severity,
+            confidence: ml.confidence || 94.5,
+            zoneName: scenario.zoneName,
+            status: "New",
+            lat: scenario.lat,
+            lng: scenario.lng,
+            behaviours: (rules.triggeredRules && rules.triggeredRules.length) ? rules.triggeredRules : [rules.logic || "Anomaly Detected"],
+            ruleLogic: rules.logic || "Autonomous ML Threat Detection",
+            explainability: rules.explainability || ""
+          };
 
-        const newAlert = {
-          id: "AL-" + Math.floor(Math.random() * 9000 + 1000),
-          ts: new Date().toISOString(),
-          vesselId: targetVessel.vesselId || targetVessel.id,
-          vesselName: targetVessel.name,
-          vesselType: targetVessel.type,
-          threatType,
-          risk: riskScore,
-          level: ml.level || "HIGH",
-          severity,
-          confidence: ml.confidence || 94.5,
-          zoneName: scenario.zoneName,
-          status: "New",
-          lat: scenario.lat,
-          lng: scenario.lng,
-          behaviours: (rules.triggeredRules && rules.triggeredRules.length) ? rules.triggeredRules : [rules.logic || "Anomaly Detected"],
-          ruleLogic: rules.logic || "Anomaly Detected",
-          explainability: rules.explainability || ""
-        };
+          return { targetVessel, scenario, newAlert, riskScore, threatType, ml };
+        });
+
+        this.anomalyCycleIndex = (this.anomalyCycleIndex + batchCount) % scenarios.length;
+        const batchResults = await Promise.all(batchPromises);
 
         this.setState(state => {
+          const targetIds = new Set(batchResults.map(r => String(r.targetVessel.vesselId || r.targetVessel.id)));
+          const resultMap = new Map(batchResults.map(r => [String(r.targetVessel.vesselId || r.targetVessel.id), r]));
+
           const nextVessels = (state.vessels || []).map(v => {
-            if ((v.vesselId || v.id) === (targetVessel.vesselId || targetVessel.id)) {
+            const vid = String(v.vesselId || v.id);
+            if (targetIds.has(vid)) {
+              const r = resultMap.get(vid);
               return {
                 ...v,
-                ...scenario.telemetry,
-                lat: scenario.lat,
-                lng: scenario.lng,
-                riskScore,
-                risk: riskScore,
-                level: ml.level || "HIGH",
-                threatType,
-                confidence: ml.confidence,
-                reasons: newAlert.behaviours,
-                behaviours: newAlert.behaviours,
-                ruleLogic: newAlert.ruleLogic,
-                explainability: newAlert.explainability,
+                ...r.scenario.telemetry,
+                lat: r.scenario.lat,
+                lng: r.scenario.lng,
+                riskScore: r.riskScore,
+                risk: r.riskScore,
+                level: r.ml.level || "HIGH",
+                threatType: r.threatType,
+                confidence: r.ml.confidence,
+                reasons: r.newAlert.behaviours,
+                behaviours: r.newAlert.behaviours,
+                ruleLogic: r.newAlert.ruleLogic,
+                explainability: r.newAlert.explainability,
+                status: "Threat",
+                assigned: false,
+                isAssigned: false,
                 lastUpdate: new Date().toISOString()
               };
             }
             return v;
           });
 
-          const currentAlerts = state.alerts || [];
-          const exists = currentAlerts.some(a => a.vesselId === newAlert.vesselId || a.vesselName === newAlert.vesselName);
-          const nextAlerts = exists ? currentAlerts : [newAlert, ...currentAlerts];
+          // Prevent collision: purge any stale duplicate alert for these specific vessels
+          const cleanCurrentAlerts = (state.alerts || []).filter(a => {
+            const vid = String(a.vesselId || "");
+            const vname = String(a.vesselName || "");
+            return !targetIds.has(vid) && !batchResults.some(r => r.targetVessel.name === vname);
+          });
+          const generatedAlerts = batchResults.map(r => r.newAlert);
 
           return {
             ...state,
             vessels: nextVessels,
-            alerts: nextAlerts
+            alerts: [...generatedAlerts, ...cleanCurrentAlerts].slice(0, 50)
           };
         });
 
-        if (typeof window !== "undefined" && window.MS_UI && window.MS_UI.showToast) {
-          window.MS_UI.showToast(`🚨 New Threat Detected: ${targetVessel.name} (${threatType} · ${riskScore}/100)`, "error");
-        }
-        console.log(`[Autonomous ML Engine] Injected new anomaly on ${targetVessel.name} -> Predicted: ${threatType} (${riskScore}/100)`);
+        batchResults.forEach(r => {
+          this.addNotification(
+            `🚨 Threat Alert: ${r.targetVessel.name}`,
+            `${r.threatType} detected near ${r.scenario.zoneName} (Threat Score: ${r.riskScore}/100).`,
+            "threat",
+            r.newAlert.severity === "Critical" ? "critical" : "high",
+            { targetRoles: ["command"], vesselId: r.targetVessel.vesselId || r.targetVessel.id }
+          );
+        });
+
+        console.log(`[Autonomous ML Engine] Immediately regenerated ${batchResults.length} threats into active tactical queue.`);
       } catch (err) {
-        console.warn("[Autonomous ML Engine] Error generating threat:", err);
+        console.warn("[Autonomous ML Engine] Error generating batch threats:", err);
       } finally {
         this.isGeneratingThreat = false;
       }

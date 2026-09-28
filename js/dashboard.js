@@ -22,13 +22,8 @@ window.MS_DASHBOARD = (function () {
   }
 
   function triggerHighThreatAlert(vessel) {
-    if (!vessel) return;
-    const verdict = getVesselVerdict(vessel);
-    if (verdict.level === "HIGH") {
-      if (window.MS_UI && window.MS_UI.showToast) {
-        window.MS_UI.showToast(`🚨 High Threat Alert: ${vessel.name} (${verdict.threatType})`, "error");
-      }
-    }
+    // Alert popup notification removed per preference
+    return;
   }
 
   return {

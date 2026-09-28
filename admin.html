@@ -138,8 +138,10 @@
         </div>
       </form>
     </div>
+  </div>
+
   <!-- Incident Dossier Modal -->
-  <div id="inc-dossier-modal" class="modal-backdrop">
+  <div id="inc-dossier-modal" class="modal-backdrop" onclick="if(event.target === this) this.classList.remove('open')">
     <div class="modal-dialog" style="max-width:700px;">
       <div class="modal-header">
         <h3 class="modal-title" id="inc-dossier-title">Incident Dossier Record</h3>
@@ -190,6 +192,22 @@
       let currentTab = initialTab;
       let auditFilter = "";
 
+      window.getAdminVesselsTableRowsHTML = function getAdminVesselsTableRowsHTML(s) {
+        return (s.vessels || []).map(v => {
+          return `
+            <tr data-vessel-id="${v.id}" style="transition: background-color 0.25s ease;">
+              <td><strong style="cursor:pointer; color:var(--primary);" onclick="window.openThreatDossier('${v.id}')">${v.name}</strong></td>
+              <td><span class="mono">${v.mmsi || 'N/A'}</span></td>
+              <td>${v.flag || 'Unknown'} · ${v.type || 'Vessel'}</td>
+              <td><span class="mono">${v.speed} kts</span> · <span class="mono">${v.course || v.heading || 0}°</span></td>
+              <td style="text-align:right;">
+                <button class="btn btn-secondary btn-sm" onclick="window.openThreatDossier('${v.id}')">Inspect Profile</button>
+              </td>
+            </tr>
+          `;
+        }).join("");
+      };
+
       function renderTab(tab) {
         if (tab === "zones") tab = "geofences";
         if (tab === "logs") tab = "audit";
@@ -236,23 +254,23 @@
             <div class="grid-4" style="margin-bottom: 20px;">
               <div class="metric-card">
                 <div class="metric-label">Total Users</div>
-                <div class="metric-value mono-num">${s.users.length}</div>
+                <div id="admin-metric-users" class="metric-value mono-num">${s.users.length}</div>
                 <div class="metric-hint">${s.users.filter(u => u.status === 'active').length} active accounts</div>
               </div>
               <div class="metric-card">
                 <div class="metric-label">Active Zones</div>
-                <div class="metric-value mono-num" style="color: var(--secondary);">${s.zones.filter(z => z.status === 'active').length}</div>
+                <div id="admin-metric-zones" class="metric-value mono-num" style="color: var(--secondary);">${s.zones.filter(z => z.status === 'active').length}</div>
                 <div class="metric-hint">${s.zones.length} total configured</div>
               </div>
               <div class="metric-card">
                 <div class="metric-label">Data Sources</div>
-                <div class="metric-value mono-num">${connected}/${s.sources.length}</div>
+                <div id="admin-metric-sources" class="metric-value mono-num">${connected}/${s.sources.length}</div>
                 <div class="metric-hint">Connected live feeds</div>
               </div>
               <div class="metric-card">
-                <div class="metric-label">Critical Alerts</div>
-                <div class="metric-value mono-num" style="color: var(--tertiary);">${s.alerts.filter(a => a.severity === 'Critical').length}</div>
-                <div class="metric-hint">Requiring intervention</div>
+                <div class="metric-label">Audit Logs</div>
+                <div id="admin-metric-audit" class="metric-value mono-num" style="color: var(--primary);">${(s.audit || []).length}</div>
+                <div class="metric-hint">Security events logged</div>
               </div>
             </div>
 
@@ -666,6 +684,12 @@
                 <h1 class="section-title">Tracked Maritime Traffic</h1>
                 <p class="section-subtitle">All vessels currently monitored in the Bay of Bengal surveillance picture.</p>
               </div>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span class="badge badge-ok" style="display:inline-flex; align-items:center; gap:6px; font-weight:600; padding:6px 12px;">
+                  <span class="ms-live-dot"></span>
+                  Live Telemetry Stream (3.5s)
+                </span>
+              </div>
             </div>
 
             <div class="panel">
@@ -677,27 +701,11 @@
                       <th>MMSI</th>
                       <th>Flag / Type</th>
                       <th>Speed / Course</th>
-                      <th>ML Model Risk Score</th>
-                      <th>AIS Status</th>
                       <th style="text-align:right;">Actions</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    ${s.vessels.map(v => {
-                      const score = typeof v.riskScore === "number" ? v.riskScore : (v.risk ?? 0);
-                      return `
-                      <tr>
-                        <td><strong style="cursor:pointer; color:var(--primary);" onclick="window.openThreatDossier('${v.id}')">${v.name}</strong></td>
-                        <td><span class="mono">${v.mmsi}</span></td>
-                        <td>${v.flag} · ${v.type}</td>
-                        <td>${v.speed} kts · ${v.course}°</td>
-                        <td><span class="badge ${score >= 80 ? 'badge-critical' : score >= 70 ? 'badge-danger' : score >= 35 ? 'badge-warn' : 'badge-ok'}">${score}/100</span></td>
-                        <td><span class="badge ${v.ais === 'active' ? 'badge-ok' : v.ais === 'lost' ? 'badge-critical' : 'badge-warn'}">${v.ais}</span></td>
-                        <td style="text-align:right;">
-                          <button class="btn btn-secondary btn-sm" onclick="window.openThreatDossier('${v.id}')">Inspect Profile</button>
-                        </td>
-                      </tr>
-                    `;}).join("")}
+                  <tbody id="admin-vessels-table-body">
+                    ${window.getAdminVesselsTableRowsHTML(s)}
                   </tbody>
                 </table>
               </div>
@@ -1039,6 +1047,28 @@
       };
 
       window.MS_UI.attachLayoutEvents(renderTab);
+
+      // Real-time dynamic state subscriber for Admin Dashboard
+      window.msStore.subscribe((s) => {
+        if (currentTab === "vessels") {
+          const tbody = document.getElementById("admin-vessels-table-body");
+          if (tbody && window.getAdminVesselsTableRowsHTML) {
+            tbody.innerHTML = window.getAdminVesselsTableRowsHTML(s);
+          }
+        } else if (currentTab === "overview") {
+          const uEl = document.getElementById("admin-metric-users");
+          if (uEl) uEl.textContent = s.users.length;
+          const zEl = document.getElementById("admin-metric-zones");
+          if (zEl) zEl.textContent = s.zones.filter(z => z.status === "active").length;
+          const sEl = document.getElementById("admin-metric-sources");
+          if (sEl) {
+            const connected = s.sources.filter(x => x.status === "connected").length;
+            sEl.textContent = `${connected}/${s.sources.length}`;
+          }
+          const aEl = document.getElementById("admin-metric-audit");
+          if (aEl) aEl.textContent = (s.audit || []).length;
+        }
+      });
 
       window.addEventListener("hashchange", () => {
         const newTab = getActiveTabFromHash();

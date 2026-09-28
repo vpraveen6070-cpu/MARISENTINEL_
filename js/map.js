@@ -266,9 +266,7 @@ window.MS_MAP = (function () {
           );
 
           circle.on("click", () => {
-            if (window.MS_UI) {
-              window.MS_UI.showToast(`Inspecting Geofence: ${z.name} (${z.classification})`);
-            }
+            // Zone clicked
           });
 
           circle.addTo(zoneLayer);
@@ -316,16 +314,16 @@ window.MS_MAP = (function () {
           }
         });
         (state.vessels || []).forEach((v) => {
-          if (v.assigned || v.isAssigned || v.status === "Assigned") {
+          if (v.assigned || v.isAssigned || v.status === "Assigned" || v.status === "In Process") {
             if (v.id) assignedVesselKeys.add(String(v.id).trim());
             if (v.vesselId) assignedVesselKeys.add(String(v.vesselId).trim());
             if (v.name) assignedVesselKeys.add(String(v.name).trim());
           }
         });
 
-        // When a threat is assigned, remove it from the map
+        // When a threat is assigned/in process, remove it from the unassigned vessels map layer
         filteredVessels = filteredVessels.filter((v) => {
-          if (v.assigned || v.isAssigned || v.status === "Assigned") return false;
+          if (v.assigned || v.isAssigned || v.status === "Assigned" || v.status === "In Process") return false;
           if (v.id && assignedVesselKeys.has(String(v.id).trim())) return false;
           if (v.vesselId && assignedVesselKeys.has(String(v.vesselId).trim())) return false;
           if (v.name && assignedVesselKeys.has(String(v.name).trim())) return false;
@@ -791,7 +789,6 @@ window.MS_MAP = (function () {
     const s = window.msStore.getState();
     const v = s.vessels.find((x) => x.id === vesselId || x.vesselId === vesselId || x.name === vesselId);
     if (!v) {
-      if (window.MS_UI) window.MS_UI.showToast("Contact profile not found.", "error");
       return;
     }
 

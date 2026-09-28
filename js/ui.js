@@ -38,83 +38,12 @@ window.MS_UI = (function () {
     ]
   };
 
-  /* ---------------- Toast Notification System (with Swipe) ---------------- */
+  /* ---------------- Toast Notification System (Completely Disabled) ---------------- */
   function showToast(message, type = "success") {
-    let container = document.getElementById("toast-container");
-    if (!container) {
-      container = document.createElement("div");
-      container.id = "toast-container";
-      container.className = "toast-container";
-      document.body.appendChild(container);
-    }
-
-    const toast = document.createElement("div");
-    toast.className = "toast-card";
-    toast.innerHTML = `
-      <div class="toast-content">
-        <span>${type === "error" ? "❌" : "✔️"}</span>
-        <span>${message}</span>
-      </div>
-      <button class="toast-close" aria-label="Dismiss">&times;</button>
-    `;
-
-    container.appendChild(toast);
-
-    // Swipe dismiss logic
-    let startX = 0;
-    let currentX = 0;
-    let isDragging = false;
-
-    function handleStart(e) {
-      isDragging = true;
-      startX = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
-    }
-
-    function handleMove(e) {
-      if (!isDragging) return;
-      currentX = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
-      const diff = currentX - startX;
-      if (diff > 0) {
-        toast.style.transform = `translateX(${diff}px)`;
-        toast.style.opacity = `${Math.max(0.2, 1 - diff / 200)}`;
-      }
-    }
-
-    function handleEnd() {
-      if (!isDragging) return;
-      isDragging = false;
-      const diff = currentX - startX;
-      if (diff > 80) {
-        dismiss();
-      } else {
-        toast.style.transform = "translateX(0)";
-        toast.style.opacity = "1";
-      }
-    }
-
-    function dismiss() {
-      toast.style.transform = "translateX(100%)";
-      toast.style.opacity = "0";
-      setTimeout(() => {
-        if (toast.parentElement) toast.remove();
-      }, 200);
-    }
-
-    toast.addEventListener("mousedown", handleStart);
-    window.addEventListener("mousemove", handleMove);
-    window.addEventListener("mouseup", handleEnd);
-
-    toast.addEventListener("touchstart", handleStart, { passive: true });
-    toast.addEventListener("touchmove", handleMove, { passive: true });
-    toast.addEventListener("touchend", handleEnd);
-
-    toast.querySelector(".toast-close").addEventListener("click", (e) => {
-      e.stopPropagation();
-      dismiss();
-    });
-
-    // Auto dismiss
-    setTimeout(dismiss, TOAST_DURATION);
+    // Pop-up notifications completely disabled across the entire project
+    const container = document.getElementById("toast-container");
+    if (container) container.remove();
+    return;
   }
 
   /* ---------------- Tactical Audio Synthesizer ---------------- */
@@ -456,7 +385,6 @@ window.MS_UI = (function () {
     const mlBadge = document.getElementById("ml-server-status-badge");
     if (mlBadge) {
       mlBadge.addEventListener("click", async () => {
-        showToast("Checking Flask ML server status...", "info");
         _consecutiveMlFailures = 0;
         await updateMlServerStatus();
       });
@@ -543,7 +471,7 @@ window.MS_UI = (function () {
             <h2>Personal Information &amp; Preferences</h2>
           </div>
           <div class="panel-body">
-            <form id="profile-edit-form" onsubmit="event.preventDefault(); window.MS_UI.showToast('Profile changes saved successfully.');">
+            <form id="profile-edit-form" onsubmit="event.preventDefault();">
               <div class="grid-2">
                 <div class="form-group">
                   <label class="form-label">Full Name</label>
